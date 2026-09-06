@@ -56,8 +56,14 @@ const Store = (() => {
     users: {
       list() { return json(USERS, []); },
       save(list) { localStorage.setItem(USERS, JSON.stringify(list)); },
-      currentId() { return localStorage.getItem(CUR) || null; },
-      setCurrent(id) { if (id) localStorage.setItem(CUR, id); else localStorage.removeItem(CUR); },
+      // "Stay signed in" keeps the session in localStorage; otherwise it lives in sessionStorage (cleared when the tab closes).
+      currentId() { try { return sessionStorage.getItem(CUR) || localStorage.getItem(CUR) || null; } catch (e) { return localStorage.getItem(CUR) || null; } },
+      setCurrent(id, persist = true) {
+        localStorage.removeItem(CUR);
+        try { sessionStorage.removeItem(CUR); } catch (e) { /* ignore */ }
+        if (!id) return;
+        try { (persist ? localStorage : sessionStorage).setItem(CUR, id); } catch (e) { localStorage.setItem(CUR, id); }
+      },
     },
   };
 })();

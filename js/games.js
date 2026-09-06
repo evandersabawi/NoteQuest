@@ -1,14 +1,14 @@
 // Game modes + quiz. Each game is a function (root, creation, ctx) that renders
-// into `root` and returns a cleanup function. ctx = { stat(key, value), restart() }.
+// into `root` and returns a cleanup function. ctx = { done(result), player(), restart() }.
 const Games = (() => {
+  const I = Icons.icon;
   const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const wait = ms => new Promise(r => setTimeout(r, ms));
   const pct = (a, b) => b ? Math.round(a / b * 100) : 0;
-  const MONSTER_EMOJI = ['🐉', '🦖', '👾', '🐙', '🦇', '🧟', '🐲', '👹', '🦂', '🐍'];
 
   // Build a pool of multiple-choice questions from Claude's questions + the flash cards.
-  function buildMC(c, { cardsFirst = false } = {}) {
+  function buildMC(c) {
     const fromQ = (c.questions || [])
       .filter(q => Array.isArray(q.choices) && q.choices.length >= 2 && q.answer >= 0 && q.answer < q.choices.length)
       .map(q => ({ q: q.question, choices: q.choices, answer: q.answer, explanation: q.explanation || '' }));
@@ -19,7 +19,7 @@ const Games = (() => {
       const choices = shuffle([k.back, ...distractors]);
       return { q: k.front, choices, answer: choices.indexOf(k.back), explanation: '' };
     }).filter(Boolean);
-    return cardsFirst ? [...shuffle(fromCards), ...shuffle(fromQ)] : shuffle([...fromQ, ...fromCards]);
+    return shuffle([...fromQ, ...fromCards]);
   }
 
   function choicesHTML(item) {
@@ -40,13 +40,13 @@ const Games = (() => {
     });
   }
 
-  function endScreen(root, { title, emoji, stats, again, extra = '' }) {
+  function endScreen(root, { title, icon, stats, again, extra = '' }) {
     root.innerHTML = `<div class="end">
-      <div class="end-emoji">${emoji}</div>
+      <div class="end-ico">${I(icon)}</div>
       <h2>${esc(title)}</h2>
       <div class="stat-row">${stats.map(([k, v]) => `<div class="stat"><b>${esc(v)}</b><span>${esc(k)}</span></div>`).join('')}</div>
       ${extra}
-      <div class="row center"><button class="btn primary" id="again">Play again</button><a class="btn ghost" href="#home">Back to creations</a></div>
+      <div class="row center"><button class="btn primary" id="again">${I('repeat')} Play again</button><a class="btn ghost" href="#creations">Back to creations</a></div>
     </div>`;
     root.querySelector('#again').onclick = again;
   }
@@ -66,7 +66,7 @@ const Games = (() => {
             <div class="fc-face fc-back"><small>ANSWER</small><p>${esc(card.back)}</p></div>
           </div>
         </div>
-        <div class="row"><button class="btn bad" id="again">Again</button><button class="btn ok" id="got">Got it</button></div>`;
+        <div class="row"><button class="btn bad" id="again">${I('repeat')} Again</button><button class="btn ok" id="got">${I('check')} Got it</button></div>`;
       const fc = root.querySelector('#fc');
       const flip = () => { flipped = !flipped; fc.classList.toggle('flipped', flipped); };
       fc.onclick = flip;
@@ -76,7 +76,7 @@ const Games = (() => {
     }
     function end() {
       ctx.done({ type: 'flash', cards: total, repeats: again });
-      endScreen(root, { title: 'Deck complete!', emoji: '🎉', stats: [['cards', total], ['repeats', again]], again: ctx.restart });
+      endScreen(root, { title: 'Deck complete', icon: 'award', stats: [['cards', total], ['repeats', again]], again: ctx.restart });
     }
     render();
     return () => {};
@@ -85,10 +85,10 @@ const Games = (() => {
   // ---------------- Notemon (battle) ----------------
   function notemon(root, c, ctx) {
     const monsters = (c.monsters && c.monsters.length ? c.monsters : []).slice(0, 5);
-    while (monsters.length < 5) monsters.push({ name: 'Wild Notemon ' + (monsters.length + 1), emoji: MONSTER_EMOJI[monsters.length] });
+    while (monsters.length < 5) monsters.push({ name: 'Wild Notemon ' + (monsters.length + 1) });
     let pool = buildMC(c), qi = 0;
     const maxHP = 100;
-    let hp = maxHP, mi = 0, mhp = 0, mmax = 0, streak = 0, caught = [], answered = 0, correctCount = 0, alive = true;
+    let hp = maxHP, mi = 0, mhp = 0, mmax = 0, streak = 0, caught = [], answered = 0, correctCount = 0;
     const nextQ = () => { if (qi >= pool.length) { pool = buildMC(c); qi = 0; } return pool[qi++]; };
     function startMonster() { mmax = 60 + mi * 25; mhp = mmax; }
     startMonster();
@@ -97,13 +97,13 @@ const Games = (() => {
       return `
       <div class="arena">
         <div class="fighter player">
-          <div class="sprite" id="p-sprite">🧑‍🎓</div>
+          <div class="sprite" id="p-sprite">${ctx.player()}</div>
           <div class="hpbar"><i id="p-hp" style="width:${pct(hp, maxHP)}%"></i></div>
           <div class="hpnum">You ${hp}/${maxHP}</div>
         </div>
         <div class="vs">VS</div>
         <div class="fighter monster">
-          <div class="sprite" id="m-sprite">${esc(m.emoji || MONSTER_EMOJI[mi])}</div>
+          <div class="sprite" id="m-sprite">${Icons.monster(mi)}</div>
           <div class="hpbar mon"><i id="m-hp" style="width:${pct(mhp, mmax)}%"></i></div>
           <div class="hpnum">${esc(m.name)} ${mhp}/${mmax}</div>
         </div>
@@ -115,7 +115,7 @@ const Games = (() => {
       const m = monsters[mi];
       const item = nextQ();
       root.innerHTML = `
-        <div class="game-top"><span>Monster ${mi + 1}/${monsters.length}</span><span>🔥 streak ${streak}</span><span>🎒 ${caught.length} caught</span></div>
+        <div class="game-top"><span>Monster ${mi + 1}/${monsters.length}</span><span>${I('flame')} streak ${streak}</span><span>${I('box')} ${caught.length} caught</span></div>
         ${arenaHTML(m)}
         <div class="battle-log" id="log">${esc(msg || `A wild ${m.name} appears! Answer to attack.`)}</div>
         <div class="qpanel"><p class="qtext">${esc(item.q)}</p>${choicesHTML(item)}</div>`;
@@ -134,7 +134,7 @@ const Games = (() => {
           log.textContent = crit ? `Critical hit! ${m.name} takes ${dmg} damage!` : `Direct hit! ${m.name} takes ${dmg} damage.`;
           await wait(1000);
           if (mhp <= 0) {
-            caught.push(m);
+            caught.push({ ...m, index: mi });
             hp = Math.min(maxHP, hp + 15);
             mi++;
             if (mi >= monsters.length) return win();
@@ -156,27 +156,25 @@ const Games = (() => {
         }
       });
     }
+    const caughtHTML = () => `<div class="caught">${caught.map(m => `<span title="${esc(m.name)}">${Icons.monster(m.index)}</span>`).join('')}</div>`;
     function win() {
-      alive = false;
       ctx.done({ type: 'notemon', caught: caught.length, won: true, accuracy: pct(correctCount, answered) });
       endScreen(root, {
-        title: 'You caught them all!', emoji: '🏆',
+        title: 'You caught them all!', icon: 'trophy',
         stats: [['caught', caught.length], ['accuracy', pct(correctCount, answered) + '%'], ['HP left', hp]],
-        again: ctx.restart,
-        extra: `<div class="caught">${caught.map(m => `<span title="${esc(m.name)}">${esc(m.emoji)}</span>`).join('')}</div>`,
+        again: ctx.restart, extra: caughtHTML(),
       });
     }
     function lose() {
-      alive = false;
       ctx.done({ type: 'notemon', caught: caught.length, won: false, accuracy: pct(correctCount, answered) });
       endScreen(root, {
-        title: 'You fainted…', emoji: '💫',
+        title: 'You fainted', icon: 'dizzy',
         stats: [['caught', caught.length], ['accuracy', pct(correctCount, answered) + '%']],
-        again: ctx.restart,
+        again: ctx.restart, extra: caught.length ? caughtHTML() : '',
       });
     }
     render();
-    return () => { alive = false; };
+    return () => {};
   }
 
   // ---------------- Match (memory pairs) ----------------
@@ -208,7 +206,7 @@ const Games = (() => {
           const secs = Math.floor((Date.now() - start) / 1000);
           ctx.done({ type: 'match', moves, secs });
           await wait(500);
-          endScreen(root, { title: 'All matched!', emoji: '🧩', stats: [['moves', moves], ['time', fmt(secs)], ['pairs', pairs.length]], again: ctx.restart });
+          endScreen(root, { title: 'All matched', icon: 'grid', stats: [['moves', moves], ['time', fmt(secs)], ['pairs', pairs.length]], again: ctx.restart });
         }
       } else {
         lock = true;
@@ -228,7 +226,7 @@ const Games = (() => {
     let pool = buildMC(c), qi = 0, score = 0, streak = 0, answered = 0, correct = 0, left = DURATION, timer, over = false;
     const nextQ = () => { if (qi >= pool.length) { pool = buildMC(c); qi = 0; } return pool[qi++]; };
     root.innerHTML = `
-      <div class="game-top"><span>⭐ <b id="score">0</b></span><span id="mult">x1</span><span>⏱ <b id="left">${DURATION}</b>s</span></div>
+      <div class="game-top"><span>${I('star')} <b id="score">0</b></span><span id="mult">x1</span><span>${I('timer')} <b id="left">${DURATION}</b>s</span></div>
       <div class="progress timer"><i id="bar" style="width:100%"></i></div>
       <div id="q"></div>`;
     const bar = root.querySelector('#bar');
@@ -258,7 +256,7 @@ const Games = (() => {
     function finish() {
       over = true; clearInterval(timer);
       ctx.done({ type: 'blitz', score, answered, correct });
-      endScreen(root, { title: "Time's up!", emoji: '⚡', stats: [['score', score], ['answered', answered], ['accuracy', pct(correct, answered) + '%']], again: ctx.restart });
+      endScreen(root, { title: "Time's up", icon: 'zap', stats: [['score', score], ['answered', answered], ['accuracy', pct(correct, answered) + '%']], again: ctx.restart });
     }
     ask();
     return () => { over = true; clearInterval(timer); };
@@ -278,18 +276,18 @@ const Games = (() => {
       if (idx >= total) return end();
       const item = items[idx];
       root.innerHTML = `
-        <div class="game-top"><span>Question ${idx + 1}/${total}</span><span>✅ ${score}</span></div>
+        <div class="game-top"><span>Question ${idx + 1}/${total}</span><span>${I('check')} ${score}</span></div>
         <div class="progress"><i style="width:${pct(idx, total)}%"></i></div>
         <div class="qpanel"><p class="qtext">${esc(item.q)}</p>${choicesHTML(item)}
           <div class="feedback" id="fb" hidden></div>
-          <div class="row right"><button class="btn primary" id="next" hidden>${idx + 1 === total ? 'See results' : 'Next'}</button></div>
+          <div class="row right"><button class="btn primary" id="next" hidden>${idx + 1 === total ? 'See results' : 'Next'} ${I('arrowRight')}</button></div>
         </div>`;
       askChoices(root, item).then(({ correct, picked }) => {
         if (correct) score++; else missed.push({ ...item, picked });
         const fb = root.querySelector('#fb');
         fb.hidden = false;
         fb.className = 'feedback ' + (correct ? 'good' : 'bad');
-        fb.innerHTML = (correct ? '<b>Correct!</b> ' : `<b>Not quite.</b> The answer is <b>${esc(item.choices[item.answer])}</b>. `) + esc(item.explanation || '');
+        fb.innerHTML = (correct ? '<b>Correct.</b> ' : `<b>Not quite.</b> The answer is <b>${esc(item.choices[item.answer])}</b>. `) + esc(item.explanation || '');
         const n = root.querySelector('#next');
         n.hidden = false; n.focus();
         n.onclick = () => { idx++; render(); };
@@ -301,8 +299,8 @@ const Games = (() => {
       const review = missed.length ? `<div class="review"><h3>Review (${missed.length})</h3>${missed.map(m =>
         `<div class="review-item"><p>${esc(m.q)}</p><div><span class="pill bad">You: ${esc(m.choices[m.picked])}</span> <span class="pill good">Answer: ${esc(m.choices[m.answer])}</span></div>${m.explanation ? `<small>${esc(m.explanation)}</small>` : ''}</div>`).join('')}</div>` : '';
       endScreen(root, {
-        title: p >= 90 ? 'Outstanding!' : p >= 70 ? 'Nice work!' : 'Keep studying!',
-        emoji: p >= 90 ? '🏅' : p >= 70 ? '👍' : '📖',
+        title: p >= 90 ? 'Outstanding' : p >= 70 ? 'Nice work' : 'Keep studying',
+        icon: p >= 90 ? 'trophy' : p >= 70 ? 'award' : 'book',
         stats: [['score', `${score}/${total}`], ['percent', p + '%']],
         again: ctx.restart, extra: review,
       });

@@ -2,12 +2,13 @@
 (() => {
   const app = document.getElementById('app');
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const I = Icons.icon;
 
   const MODES = {
-    flash:   { name: 'Flash Cards', icon: '🃏', desc: 'Flip through cards and mark what you know.' },
-    notemon: { name: 'Notemon',     icon: '🐉', desc: 'Battle and catch monsters by answering questions.' },
-    match:   { name: 'Match',       icon: '🧩', desc: 'Memory game: pair terms with their answers.' },
-    blitz:   { name: 'Blitz',       icon: '⚡', desc: '60-second speed round with streak multipliers.' },
+    flash:   { name: 'Flash Cards', icon: 'cards',  desc: 'Flip through cards and mark what you know.' },
+    notemon: { name: 'Notemon',     icon: 'swords', desc: 'Battle and catch monsters by answering questions.' },
+    match:   { name: 'Match',       icon: 'grid',   desc: 'Memory game: pair terms with their answers.' },
+    blitz:   { name: 'Blitz',       icon: 'zap',    desc: '60-second speed round with streak multipliers.' },
   };
   const THEMES = {
     midnight: { name: 'Midnight', swatch: ['#0f1020', '#8b7cff', '#ff7ce5'] },
@@ -22,12 +23,12 @@
     ['claude-sonnet-5', 'Claude Sonnet 5 (cheaper, faster)'],
     ['claude-fable-5-1', 'Claude Fable 5.1 (most capable, most expensive)'],
   ];
-  const AVATARS = ['🦊', '🐼', '🐸', '🐯', '🦄', '🐙', '🐲', '🤖', '👽', '🧙', '🦉', '🐨', '🦁', '🐧', '🦋', '🐺', '🐶', '🐱', '🦖', '🍄'];
-  const COLORS = ['#8b7cff', '#2dd4f5', '#7ee787', '#ff9e5e', '#ff4fa3', '#f5d76e', '#5eead4', '#ff5c7a', '#a3e635', '#fb923c'];
+  const COLORS = ['#8b7cff', '#2dd4f5', '#7ee787', '#ff9e5e', '#ff4fa3', '#f5d76e', '#5eead4', '#ff5c7a', '#a3e635', '#fb923c', '#60a5fa', '#c084fc'];
 
   const settings = () => Object.assign({ model: 'claude-opus-5', theme: 'midnight' }, Store.settings.get());
   const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2));
   const localDay = (d = new Date()) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  const rnd = n => Math.floor(Math.random() * n);
 
   // ---------- users / accounts (stored on this device only) ----------
   const users = () => Store.users.list();
@@ -45,7 +46,7 @@
   }
   const level = xp => Math.floor(Math.sqrt(xp / 50)) + 1;
   const xpForLevel = l => (l - 1) * (l - 1) * 50;
-  const avatarHTML = (u, cls = '') => `<span class="avatar ${cls}" style="background:${esc(u.avatar?.color || COLORS[0])}">${esc(u.avatar?.emoji || '🦊')}</span>`;
+  const avatarHTML = (u, cls = '') => Icons.avatar(u.avatar || {}, cls);
   const mine = (list, u) => list.filter(c => !c.owner || c.owner === u.id).sort((a, b) => b.createdAt - a.createdAt);
 
   // Record a finished game/quiz on both the creation and the user.
@@ -96,20 +97,24 @@
     });
   }
 
-  // Avatar picker (emoji + colour). Resolves with {emoji, color} or null.
+  // Avatar picker (creature + colour). Resolves with {kind, color} or null.
   function pickAvatar(current) {
-    let emoji = current?.emoji || AVATARS[0], color = current?.color || COLORS[0];
+    let kind = current?.kind ?? 0, color = current?.color || COLORS[0];
     return modal({
       title: 'Choose your avatar', okText: 'Save',
-      body: `<div class="avatar-preview"><span class="avatar xl" id="av-prev" style="background:${color}">${emoji}</span></div>
-        <div class="emoji-grid">${AVATARS.map(a => `<button type="button" class="emoji-pick ${a === emoji ? 'active' : ''}" data-e="${a}">${a}</button>`).join('')}</div>
+      body: `<div class="avatar-preview" id="av-prev">${Icons.avatar({ kind, color }, 'xl')}</div>
+        <div class="kind-grid">${Icons.KINDS.map((k, i) => `<button type="button" class="kind-pick ${i === kind ? 'active' : ''}" data-k="${i}" title="${esc(k.name)}">${Icons.avatar({ kind: i, color }, 'md')}<small>${esc(k.name)}</small></button>`).join('')}</div>
         <div class="color-row">${COLORS.map(c => `<button type="button" class="color-pick ${c === color ? 'active' : ''}" data-c="${c}" style="background:${c}" aria-label="${c}"></button>`).join('')}</div>`,
       onOpen(m) {
-        const prev = m.querySelector('#av-prev');
-        m.querySelectorAll('.emoji-pick').forEach(b => b.onclick = () => { emoji = b.dataset.e; prev.textContent = emoji; m.querySelectorAll('.emoji-pick').forEach(x => x.classList.toggle('active', x === b)); });
-        m.querySelectorAll('.color-pick').forEach(b => b.onclick = () => { color = b.dataset.c; prev.style.background = color; m.querySelectorAll('.color-pick').forEach(x => x.classList.toggle('active', x === b)); });
+        const refresh = () => {
+          m.querySelector('#av-prev').innerHTML = Icons.avatar({ kind, color }, 'xl');
+          m.querySelectorAll('.kind-pick').forEach(b => { b.classList.toggle('active', +b.dataset.k === kind); b.querySelector('svg').outerHTML = Icons.avatar({ kind: +b.dataset.k, color }, 'md'); });
+          m.querySelectorAll('.color-pick').forEach(b => b.classList.toggle('active', b.dataset.c === color));
+        };
+        m.querySelectorAll('.kind-pick').forEach(b => b.onclick = () => { kind = +b.dataset.k; refresh(); });
+        m.querySelectorAll('.color-pick').forEach(b => b.onclick = () => { color = b.dataset.c; refresh(); });
       },
-    }).then(v => v ? { emoji, color } : null);
+    }).then(v => v ? { kind, color } : null);
   }
 
   // ---------- chrome: top bar + sidebar ----------
@@ -124,14 +129,37 @@
     const top = document.getElementById('topRight');
     document.body.classList.toggle('logged-out', !u);
     if (!u) {
-      top.innerHTML = `<a class="btn ghost" href="#login">Log in</a><a class="btn primary" href="#signup">Sign up</a>`;
+      top.innerHTML = `<a class="btn ghost" href="#login" id="top-login">Log in</a><a class="btn primary" href="#signup">Sign up</a>`;
+      top.querySelector('#top-login').onclick = () => { loginTarget = null; };
       document.getElementById('sideUser').innerHTML = '';
       return;
     }
-    top.innerHTML = `<a class="user-chip" href="#home">${avatarHTML(u, 'sm')}<span>${esc(u.name)}</span></a><button class="btn ghost" id="logout">Log out</button>`;
-    top.querySelector('#logout').onclick = () => { Store.users.setCurrent(null); toast('Logged out'); location.hash = '#login'; route(); };
+    top.innerHTML = `<details class="menu user-menu"><summary class="user-chip">${avatarHTML(u, 'sm')}<span>${esc(u.name)}</span>${I('chevronDown', 'chev')}</summary>
+      <div class="menu-list">
+        <a href="#home">${I('user')} My profile</a>
+        <a href="#settings">${I('settings')} Account settings</a>
+        <button id="switch-acc">${I('switch')} Switch account</button>
+        <button id="logout" class="danger">${I('logout')} Log out</button>
+      </div></details>`;
+    const menu = top.querySelector('details');
+    menu.querySelectorAll('a').forEach(a => a.onclick = () => { menu.open = false; });
+    top.querySelector('#logout').onclick = () => { menu.open = false; logout(false); };
+    top.querySelector('#switch-acc').onclick = () => { menu.open = false; logout(true); };
     const xp = u.stats.xp, lv = level(xp);
     document.getElementById('sideUser').innerHTML = `<a href="#home" class="side-user-link">${avatarHTML(u, 'md')}<div><b>${esc(u.name)}</b><small>Level ${lv} · ${xp} XP</small></div></a>`;
+  }
+  document.addEventListener('click', e => { document.querySelectorAll('details.user-menu[open]').forEach(d => { if (!d.contains(e.target)) d.open = false; }); });
+
+  async function logout(switching) {
+    const u = currentUser(); if (!u) return;
+    if (!switching) {
+      const v = await modal({ title: `Log out of ${u.name}?`, okText: 'Log out', body: '<p>Your progress is saved on this device. You will need your password to log back in.</p>' });
+      if (!v) return;
+    }
+    Store.users.setCurrent(null);
+    loginTarget = null;
+    toast(switching ? 'Choose an account to continue' : `Logged out. See you soon, ${u.name}.`);
+    location.hash = '#login'; route();
   }
 
   // ---------- router ----------
@@ -145,7 +173,7 @@
     const u = currentUser();
     if (!u) {
       applyTheme(settings().theme); setNav('');
-      return renderAuth(path === 'signup' || !users().length ? 'signup' : 'login');
+      return renderAuth(path === 'signup' ? 'signup' : 'login');
     }
     switch (path) {
       case 'login': return renderAuth('login');
@@ -160,46 +188,258 @@
   }
   window.addEventListener('hashchange', route);
 
-  // ---------- auth (local accounts) ----------
+  // ---------- auth helpers (local accounts, passwords stored as salted PBKDF2 hashes) ----------
+  const enc = s => new TextEncoder().encode(s);
+  const hex = buf => [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+  const Auth = {
+    salt() { const a = new Uint8Array(16); crypto.getRandomValues(a); return hex(a); },
+    async hash(secret, salt) {
+      if (crypto.subtle) {
+        const key = await crypto.subtle.importKey('raw', enc(secret), 'PBKDF2', false, ['deriveBits']);
+        return 'pbkdf2:' + hex(await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt: enc(salt), iterations: 100000 }, key, 256));
+      }
+      // Fallback for insecure contexts (file://) where Web Crypto is unavailable.
+      let h = 0x811c9dc5; const s = salt + ':' + secret;
+      for (let r = 0; r < 20000; r++) for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
+      return 'fnv:' + h.toString(16);
+    },
+    async setPassword(u, pw) { u.salt = this.salt(); u.passHash = await this.hash(pw, u.salt); u.passwordChangedAt = Date.now(); },
+    async verify(u, pw) { return !!u.passHash && (await this.hash(pw, u.salt)) === u.passHash; },
+    async setRecovery(u, q, a) { u.recoveryQ = q; u.recoverySalt = this.salt(); u.recoveryHash = await this.hash(a.trim().toLowerCase(), u.recoverySalt); },
+    async checkRecovery(u, a) { return !!u.recoveryHash && (await this.hash(a.trim().toLowerCase(), u.recoverySalt)) === u.recoveryHash; },
+    strength(pw) {
+      if (!pw) return 0; if (pw.length < 8) return 1;
+      let s = 1; if (pw.length >= 12) s++; if (/[a-z]/.test(pw) && /[A-Z]/.test(pw)) s++; if (/\d/.test(pw)) s++; if (/[^\w\s]/.test(pw)) s++;
+      return Math.min(4, s);
+    },
+  };
+  const STRENGTH = ['', 'Too short', 'Weak', 'Good', 'Strong'];
+  const QUESTIONS = ['What was the name of your first pet?', 'What street did you grow up on?', 'What was your first school called?', 'What is your favourite food?', 'What city were you born in?', 'What is your favourite teacher\'s last name?'];
+  const MAX_ATTEMPTS = 5, LOCK_MS = 30000;
+  const attempts = {}; // in-memory lockout per account: id -> { n, until }
+  let loginTarget = null; // account chosen on the login screen
+
+  function relTime(ts) {
+    const m = Math.round((Date.now() - ts) / 60000);
+    if (m < 1) return 'just now'; if (m < 60) return m + ' min ago';
+    const h = Math.round(m / 60); if (h < 24) return h + ' hour' + (h === 1 ? '' : 's') + ' ago';
+    const d = Math.round(h / 24); if (d < 30) return d + ' day' + (d === 1 ? '' : 's') + ' ago';
+    return new Date(ts).toLocaleDateString();
+  }
+  const pwField = (id, label, extra = '') => `<label class="field"><span>${label}</span><div class="pw-wrap"><input class="input" id="${id}" type="password" autocomplete="${id === 'pw' || id === 'cur' ? 'current-password' : 'new-password'}" ${extra}><button type="button" class="pw-eye" data-eye="${id}" aria-label="Show password">${I('eye')}${I('eyeOff')}</button></div></label>`;
+  const strengthHTML = id => `<div class="strength" id="${id}" data-level="0"><i></i><span></span></div>`;
+  const questionHTML = (id, current) => `<label class="field"><span>Security question <small>(used to reset a forgotten password)</small></span><select class="input" id="${id}">${QUESTIONS.map(q => `<option ${q === current ? 'selected' : ''}>${esc(q)}</option>`).join('')}</select></label>`;
+  function wireEyes(root) { root.querySelectorAll('[data-eye]').forEach(b => b.onclick = () => { const i = root.querySelector('#' + b.dataset.eye); i.type = i.type === 'password' ? 'text' : 'password'; b.classList.toggle('on', i.type === 'text'); i.focus(); }); }
+  function wireStrength(input, meter) { const upd = () => { const s = Auth.strength(input.value); meter.dataset.level = s; meter.querySelector('span').textContent = STRENGTH[s]; }; input.addEventListener('input', upd); upd(); }
+  function showErr(root, text) {
+    const err = root.querySelector('.error'); err.hidden = false; err.textContent = text;
+    const card = root.querySelector('.auth-card, .modal-card'); if (card) { card.classList.add('shake'); setTimeout(() => card.classList.remove('shake'), 400); }
+  }
+  function checkPasswords(root, newId, confId) {
+    const n = root.querySelector('#' + newId).value;
+    if (n.length < 8) return 'Password needs at least 8 characters.';
+    if (n !== root.querySelector('#' + confId).value) return 'Passwords do not match.';
+    return null;
+  }
+  function locked(u) { const a = attempts[u.id]; return a && a.until > Date.now() ? Math.ceil((a.until - Date.now()) / 1000) : 0; }
+  function failAttempt(u) {
+    const a = attempts[u.id] || (attempts[u.id] = { n: 0, until: 0 });
+    a.n++;
+    if (a.n >= MAX_ATTEMPTS) { a.until = Date.now() + LOCK_MS; a.n = 0; return `Too many wrong attempts. Locked for ${LOCK_MS / 1000} seconds.`; }
+    const left = MAX_ATTEMPTS - a.n;
+    return `Wrong password. ${left} attempt${left === 1 ? '' : 's'} left.`;
+  }
+  function finishLogin(u, stay, msg) {
+    u.lastLogin = Date.now(); saveUser(u); delete attempts[u.id];
+    Store.users.setCurrent(u.id, stay); loginTarget = null;
+    toast(msg || `Welcome back, ${u.name}.`); location.hash = '#home'; route();
+  }
+  const authShell = inner => `<section class="auth"><div class="auth-card">${inner}</div></section>`;
+
+  // ---------- auth screens ----------
   function renderAuth(kind) {
     setNav('');
     const list = users();
-    if (kind === 'login' && list.length) {
-      app.innerHTML = `<section class="auth">
-        <div class="auth-card">
-          <div class="auth-logo">📝</div>
-          <h1>Welcome back</h1>
-          <p class="hint">Pick your account to log in.</p>
-          <div class="account-list">${list.map(u => `<button class="account" data-id="${u.id}">${avatarHTML(u, 'md')}<span><b>${esc(u.name)}</b><small>Level ${level(u.stats.xp)} · ${u.stats.xp} XP</small></span></button>`).join('')}</div>
-          <p class="hint">New here? <a href="#signup">Sign up</a></p>
-        </div></section>`;
-      app.querySelectorAll('.account').forEach(b => b.onclick = () => { Store.users.setCurrent(b.dataset.id); location.hash = '#home'; route(); });
+    if (kind === 'signup' || !list.length) return renderSignup(list);
+    const target = list.find(u => u.id === loginTarget);
+    if (kind === 'reset' && target) return renderReset(target);
+    if (target) return target.passHash ? renderPassword(target) : renderFinishSetup(target);
+    app.innerHTML = authShell(`
+      <div class="auth-logo">${I('logo')}</div>
+      <h1>Welcome back</h1>
+      <p class="hint">Choose your account to log in.</p>
+      <div class="account-list">${list.map(u => `<button class="account" data-id="${u.id}">${avatarHTML(u, 'md')}<span><b>${esc(u.name)}</b><small>Level ${level(u.stats.xp)} · ${u.stats.xp} XP${u.lastLogin ? ' · last login ' + relTime(u.lastLogin) : ''}</small></span>${I('chevronRight', 'chev')}</button>`).join('')}</div>
+      <p class="hint">New here? <a href="#signup">Create an account</a></p>`);
+    app.querySelectorAll('.account').forEach(b => b.onclick = () => { loginTarget = b.dataset.id; renderAuth('login'); });
+  }
+
+  function renderPassword(u) {
+    app.innerHTML = authShell(`
+      ${avatarHTML(u, 'xl')}
+      <h1>Hi, ${esc(u.name)}</h1>
+      <p class="hint">Enter your password to continue.</p>
+      <form class="auth-form" id="f">
+        ${pwField('pw', 'Password')}
+        <label class="check"><input type="checkbox" id="stay" checked> Stay signed in on this device</label>
+        <div class="error" hidden></div>
+        <button class="btn primary big wide" type="submit">${I('lock')} Log in</button>
+      </form>
+      <p class="hint"><a href="#" id="forgot">Forgot password?</a> · <a href="#" id="switch">Not you? Choose another account</a></p>`);
+    wireEyes(app);
+    const pw = app.querySelector('#pw'); pw.focus();
+    app.querySelector('#f').onsubmit = async e => {
+      e.preventDefault();
+      const secs = locked(u); if (secs) return showErr(app, `Too many attempts. Try again in ${secs}s.`);
+      if (!pw.value) return showErr(app, 'Enter your password.');
+      if (!(await Auth.verify(u, pw.value))) { pw.value = ''; return showErr(app, failAttempt(u)); }
+      finishLogin(u, app.querySelector('#stay').checked);
+    };
+    app.querySelector('#forgot').onclick = e => { e.preventDefault(); renderAuth('reset'); };
+    app.querySelector('#switch').onclick = e => { e.preventDefault(); loginTarget = null; renderAuth('login'); };
+  }
+
+  function renderReset(u) {
+    if (!u.recoveryQ) {
+      app.innerHTML = authShell(`${avatarHTML(u, 'xl')}<h1>Can't reset password</h1>
+        <p class="hint">This account has no security question, so the password can't be reset. If you have a backup export, delete this account and import it again.</p>
+        <p class="hint"><a href="#" id="back">Back to log in</a></p>`);
+      app.querySelector('#back').onclick = e => { e.preventDefault(); renderAuth('login'); };
       return;
     }
-    let avatar = { emoji: AVATARS[Math.floor(Math.random() * AVATARS.length)], color: COLORS[Math.floor(Math.random() * COLORS.length)] };
-    app.innerHTML = `<section class="auth">
-      <div class="auth-card">
-        <div class="auth-logo">📝</div>
-        <h1>Create your account</h1>
-        <p class="hint">Accounts are saved on this device only. No email or password needed.</p>
-        <button type="button" class="avatar-btn" id="pick"><span class="avatar xl" id="av" style="background:${avatar.color}">${avatar.emoji}</span><small>Tap to change avatar</small></button>
-        <label class="field"><span>Username</span><input class="input" id="uname" placeholder="e.g. evander" maxlength="24" autocomplete="off"></label>
-        <div class="error" id="err" hidden></div>
-        <button class="btn primary big wide" id="go">Sign up</button>
-        ${list.length ? '<p class="hint">Already have an account? <a href="#login">Log in</a></p>' : ''}
-      </div></section>`;
-    const nameEl = app.querySelector('#uname'); nameEl.focus();
-    app.querySelector('#pick').onclick = async () => { const a = await pickAvatar(avatar); if (a) { avatar = a; const av = app.querySelector('#av'); av.textContent = a.emoji; av.style.background = a.color; } };
-    const submit = () => {
-      const name = nameEl.value.trim();
-      const err = app.querySelector('#err');
-      if (name.length < 2) { err.hidden = false; err.textContent = 'Username needs at least 2 characters.'; return; }
-      if (list.some(u => u.name.toLowerCase() === name.toLowerCase())) { err.hidden = false; err.textContent = 'That username is already taken on this device.'; return; }
-      const u = newUser(name, avatar); saveUser(u); Store.users.setCurrent(u.id);
-      toast(`Welcome, ${u.name}!`); location.hash = '#home'; route();
+    app.innerHTML = authShell(`
+      ${avatarHTML(u, 'xl')}
+      <h1>Reset password</h1>
+      <p class="hint">Answer your security question to choose a new password.</p>
+      <form class="auth-form" id="f">
+        <label class="field"><span>${esc(u.recoveryQ)}</span><input class="input" id="ans" autocomplete="off"></label>
+        ${pwField('new', 'New password')}${strengthHTML('str')}
+        ${pwField('conf', 'Confirm new password')}
+        <div class="error" hidden></div>
+        <button class="btn primary big wide" type="submit">Reset password</button>
+      </form>
+      <p class="hint"><a href="#" id="back">Back to log in</a></p>`);
+    wireEyes(app); wireStrength(app.querySelector('#new'), app.querySelector('#str'));
+    app.querySelector('#ans').focus();
+    app.querySelector('#f').onsubmit = async e => {
+      e.preventDefault();
+      const secs = locked(u); if (secs) return showErr(app, `Too many attempts. Try again in ${secs}s.`);
+      if (!(await Auth.checkRecovery(u, app.querySelector('#ans').value))) return showErr(app, failAttempt(u).replace('Wrong password', 'Wrong answer'));
+      const bad = checkPasswords(app, 'new', 'conf'); if (bad) return showErr(app, bad);
+      await Auth.setPassword(u, app.querySelector('#new').value); saveUser(u); delete attempts[u.id];
+      toast('Password reset. Log in with your new password.');
+      renderAuth('login');
     };
-    app.querySelector('#go').onclick = submit;
-    nameEl.onkeydown = e => { if (e.key === 'Enter') submit(); };
+    app.querySelector('#back').onclick = e => { e.preventDefault(); renderAuth('login'); };
+  }
+
+  // Accounts created before passwords existed: set one up on first login.
+  function renderFinishSetup(u) {
+    app.innerHTML = authShell(`
+      ${avatarHTML(u, 'xl')}
+      <h1>Finish setting up, ${esc(u.name)}</h1>
+      <p class="hint">Your account was created without a password. Add one to keep your progress safe.</p>
+      <form class="auth-form" id="f">
+        ${pwField('new', 'Password')}${strengthHTML('str')}
+        ${pwField('conf', 'Confirm password')}
+        ${questionHTML('q')}
+        <label class="field"><span>Answer</span><input class="input" id="ans" autocomplete="off" maxlength="60"></label>
+        <label class="check"><input type="checkbox" id="stay" checked> Stay signed in on this device</label>
+        <div class="error" hidden></div>
+        <button class="btn primary big wide" type="submit">Save and log in</button>
+      </form>
+      <p class="hint"><a href="#" id="switch">Not you? Choose another account</a></p>`);
+    wireEyes(app); wireStrength(app.querySelector('#new'), app.querySelector('#str'));
+    app.querySelector('#new').focus();
+    app.querySelector('#f').onsubmit = async e => {
+      e.preventDefault();
+      const bad = checkPasswords(app, 'new', 'conf'); if (bad) return showErr(app, bad);
+      const ans = app.querySelector('#ans').value.trim(); if (ans.length < 2) return showErr(app, 'Answer your security question (at least 2 characters).');
+      await Auth.setPassword(u, app.querySelector('#new').value);
+      await Auth.setRecovery(u, app.querySelector('#q').value, ans);
+      finishLogin(u, app.querySelector('#stay').checked, `All set. Welcome back, ${u.name}.`);
+    };
+    app.querySelector('#switch').onclick = e => { e.preventDefault(); loginTarget = null; renderAuth('login'); };
+  }
+
+  function renderSignup(list) {
+    let avatar = { kind: rnd(Icons.KINDS.length), color: COLORS[rnd(COLORS.length)] };
+    app.innerHTML = authShell(`
+      <div class="auth-logo">${I('logo')}</div>
+      <h1>Create your account</h1>
+      <p class="hint">Your account lives on this device. Nothing is sent to a server.</p>
+      <button type="button" class="avatar-btn" id="pick"><span id="av">${Icons.avatar(avatar, 'xl')}</span><small>Tap to change avatar</small></button>
+      <form class="auth-form" id="f">
+        <label class="field"><span>Username</span><input class="input" id="uname" placeholder="2–24 letters, numbers, . _ -" maxlength="24" autocomplete="username"></label>
+        ${pwField('new', 'Password')}${strengthHTML('str')}
+        ${pwField('conf', 'Confirm password')}
+        ${questionHTML('q')}
+        <label class="field"><span>Answer</span><input class="input" id="ans" autocomplete="off" maxlength="60"></label>
+        <label class="check"><input type="checkbox" id="stay" checked> Stay signed in on this device</label>
+        <div class="error" hidden></div>
+        <button class="btn primary big wide" type="submit">Create account</button>
+      </form>
+      ${list.length ? '<p class="hint">Already have an account? <a href="#login" id="to-login">Log in</a></p>' : ''}`);
+    wireEyes(app); wireStrength(app.querySelector('#new'), app.querySelector('#str'));
+    const nameEl = app.querySelector('#uname'); nameEl.focus();
+    app.querySelector('#pick').onclick = async () => { const a = await pickAvatar(avatar); if (a) { avatar = a; app.querySelector('#av').innerHTML = Icons.avatar(avatar, 'xl'); } };
+    const toLogin = app.querySelector('#to-login'); if (toLogin) toLogin.onclick = () => { loginTarget = null; };
+    app.querySelector('#f').onsubmit = async e => {
+      e.preventDefault();
+      const name = nameEl.value.trim();
+      if (!/^[\w.-]{2,24}$/.test(name)) return showErr(app, 'Username must be 2–24 characters: letters, numbers, dots, dashes or underscores.');
+      if (list.some(u => u.name.toLowerCase() === name.toLowerCase())) return showErr(app, 'That username is already taken on this device.');
+      const bad = checkPasswords(app, 'new', 'conf'); if (bad) return showErr(app, bad);
+      const ans = app.querySelector('#ans').value.trim(); if (ans.length < 2) return showErr(app, 'Answer your security question (at least 2 characters).');
+      const u = newUser(name, avatar);
+      await Auth.setPassword(u, app.querySelector('#new').value);
+      await Auth.setRecovery(u, app.querySelector('#q').value, ans);
+      finishLogin(u, app.querySelector('#stay').checked, `Welcome to NoteQuest, ${u.name}.`);
+    };
+  }
+
+  // ---------- account management (used from Settings) ----------
+  function changePasswordFlow(u) {
+    return modal({
+      title: 'Change password', okText: 'Save',
+      body: `${pwField('cur', 'Current password')}${pwField('new', 'New password')}${strengthHTML('str')}${pwField('conf', 'Confirm new password')}<div class="error" hidden></div>`,
+      onOpen(m, close) {
+        wireEyes(m); wireStrength(m.querySelector('#new'), m.querySelector('#str'));
+        const ok = m.querySelector('#m-ok');
+        ok.onclick = async () => {
+          if (!(await Auth.verify(u, m.querySelector('#cur').value))) return showErr(m, 'Current password is wrong.');
+          const bad = checkPasswords(m, 'new', 'conf'); if (bad) return showErr(m, bad);
+          await Auth.setPassword(u, m.querySelector('#new').value); saveUser(u); close(true);
+        };
+        m.querySelectorAll('input').forEach(i => i.onkeydown = e => { if (e.key === 'Enter') ok.click(); });
+      },
+    });
+  }
+  function securityQuestionFlow(u) {
+    return modal({
+      title: 'Security question', okText: 'Save',
+      body: `${questionHTML('q', u.recoveryQ)}<label class="field"><span>Answer</span><input class="input" id="ans" autocomplete="off" maxlength="60"></label>${pwField('cur', 'Confirm with your password')}<div class="error" hidden></div>`,
+      onOpen(m, close) {
+        wireEyes(m);
+        const ok = m.querySelector('#m-ok');
+        ok.onclick = async () => {
+          const ans = m.querySelector('#ans').value.trim(); if (ans.length < 2) return showErr(m, 'Enter an answer (at least 2 characters).');
+          if (!(await Auth.verify(u, m.querySelector('#cur').value))) return showErr(m, 'Password is wrong.');
+          await Auth.setRecovery(u, m.querySelector('#q').value, ans); saveUser(u); close(true);
+        };
+        m.querySelectorAll('input').forEach(i => i.onkeydown = e => { if (e.key === 'Enter') ok.click(); });
+      },
+    });
+  }
+  function confirmWithPassword(u, title, text, okText) {
+    return modal({
+      title, okText, body: `<p>${text}</p>${pwField('cur', 'Enter your password to confirm')}<div class="error" hidden></div>`,
+      onOpen(m, close) {
+        wireEyes(m);
+        const ok = m.querySelector('#m-ok');
+        ok.onclick = async () => { if (!(await Auth.verify(u, m.querySelector('#cur').value))) return showErr(m, 'Password is wrong.'); close(true); };
+        m.querySelectorAll('input').forEach(i => i.onkeydown = e => { if (e.key === 'Enter') ok.click(); });
+      },
+    });
   }
 
   // ---------- Home ----------
@@ -210,40 +450,45 @@
     const avg = s.quizzes ? Math.round(s.quizPctTotal / s.quizzes) : null;
     const st = streak(u);
     const stats = [
-      ['📚', list.length, 'sets created'],
-      ['📝', s.quizzes, 'quizzes taken'],
-      ['🎯', avg == null ? '–' : avg + '%', 'avg quiz score'],
-      ['🃏', s.cardsStudied, 'cards studied'],
-      ['🐉', s.monstersCaught, 'monsters caught'],
-      ['⚡', s.blitzBest, 'blitz best'],
-      ['🧩', s.matchBest == null ? '–' : s.matchBest, 'match best (moves)'],
-      ['🔥', st, st === 1 ? 'day streak' : 'day streak'],
+      ['library', list.length, 'sets created'],
+      ['quiz', s.quizzes, 'quizzes taken'],
+      ['target', avg == null ? '–' : avg + '%', 'avg quiz score'],
+      ['cards', s.cardsStudied, 'cards studied'],
+      ['swords', s.monstersCaught, 'monsters caught'],
+      ['zap', s.blitzBest, 'blitz best'],
+      ['grid', s.matchBest == null ? '–' : s.matchBest, 'match best (moves)'],
+      ['flame', st, 'day streak'],
     ];
     app.innerHTML = `<section class="home">
       <div class="hero">
         <button type="button" class="avatar-btn" id="avatarBtn" title="Change avatar">${avatarHTML(u, 'xl')}</button>
         <div class="hero-text">
-          <div class="name-row"><h1>${esc(u.name)}</h1><button class="icon-btn" id="editName" title="Change username">✏️</button></div>
+          <div class="name-row"><h1>${esc(u.name)}</h1><button class="icon-btn" id="editName" title="Change username">${I('pencil')}</button></div>
           <div class="level-row"><b>Level ${lv}</b><span class="xpbar"><i style="width:${Math.round((xp - lo) / (hi - lo) * 100)}%"></i></span><small>${xp - lo} / ${hi - lo} XP</small></div>
-          <div class="hero-badges"><span class="badge">🔥 ${st}-day streak</span>${s.notemonWins ? `<span class="badge">🏆 ${s.notemonWins} Notemon win${s.notemonWins === 1 ? '' : 's'}</span>` : ''}${s.quizBest ? `<span class="badge">🎯 best quiz ${s.quizBest}%</span>` : ''}</div>
+          <div class="hero-badges"><span class="badge">${I('flame')} ${st}-day streak</span>${s.notemonWins ? `<span class="badge">${I('trophy')} ${s.notemonWins} Notemon win${s.notemonWins === 1 ? '' : 's'}</span>` : ''}${s.quizBest ? `<span class="badge">${I('target')} best quiz ${s.quizBest}%</span>` : ''}</div>
         </div>
-        <a class="btn primary big" href="#create">✨ New set</a>
+        <a class="btn primary big" href="#create">${I('sparkles')} New set</a>
       </div>
 
       <h2>Your stats</h2>
-      <div class="stats-grid">${stats.map(([i, v, l]) => `<div class="stat-card"><span class="stat-ico">${i}</span><b>${esc(v)}</b><small>${esc(l)}</small></div>`).join('')}</div>
+      <div class="stats-grid">${stats.map(([i, v, l]) => `<div class="stat-card"><span class="stat-ico">${I(i)}</span><b>${esc(v)}</b><small>${esc(l)}</small></div>`).join('')}</div>
 
-      <div class="section-head"><h2>Recent notes</h2>${list.length ? '<a href="#creations">See all →</a>' : ''}</div>
+      <div class="section-head"><h2>Recent notes</h2>${list.length ? `<a href="#creations">See all ${I('arrowRight')}</a>` : ''}</div>
       ${list.length ? `<div class="grid">${list.slice(0, 4).map(tileHTML).join('')}</div>`
-        : `<div class="empty small"><p>No notes yet. Snap photos of your notes and Claude will turn them into a game.</p><div class="row center"><a class="btn primary" href="#create">＋ Create your first set</a><button class="btn ghost" id="sample">Load a sample</button></div></div>`}
+        : `<div class="empty small"><p>No notes yet. Snap photos of your notes and Claude will turn them into a game.</p><div class="row center"><a class="btn primary" href="#create">${I('plus')} Create your first set</a><button class="btn ghost" id="sample">Load a sample</button></div></div>`}
     </section>`;
     app.querySelector('#avatarBtn').onclick = async () => { const a = await pickAvatar(u.avatar); if (a) { u.avatar = a; saveUser(u); renderChrome(); renderHome(); } };
-    app.querySelector('#editName').onclick = async () => {
-      const v = await modal({ title: 'Change username', okText: 'Save', body: `<input class="input" value="${esc(u.name)}" maxlength="24">` });
-      if (v && v.trim().length >= 2) { u.name = v.trim(); saveUser(u); renderChrome(); renderHome(); toast('Username updated'); }
-    };
+    app.querySelector('#editName').onclick = () => renameFlow(u, renderHome);
     const smp = app.querySelector('#sample'); if (smp) smp.onclick = async () => { await Store.put(sampleCreation(u)); toast('Sample added'); renderHome(); };
     wireTiles();
+  }
+  async function renameFlow(u, after) {
+    const v = await modal({ title: 'Change username', okText: 'Save', body: `<input class="input" value="${esc(u.name)}" maxlength="24">` });
+    if (v == null) return;
+    const name = v.trim();
+    if (!/^[\w.-]{2,24}$/.test(name)) return toast('Username must be 2–24 characters: letters, numbers, dots, dashes or underscores.', 4000);
+    if (users().some(x => x.id !== u.id && x.name.toLowerCase() === name.toLowerCase())) return toast('That username is already taken on this device.');
+    u.name = name; saveUser(u); renderChrome(); after(); toast('Username updated');
   }
 
   // ---------- Your Creations ----------
@@ -253,17 +498,17 @@
     const s = settings();
     if (!list.length) {
       app.innerHTML = `<section class="empty">
-        <div class="empty-emoji">📚</div>
+        <div class="empty-ico">${I('library')}</div>
         <h1>Your creations</h1>
         <p>Nothing here yet. Snap some photos of your notes and let Claude turn them into a game.</p>
-        <div class="row center"><a class="btn primary big" href="#create">＋ Create your first set</a><button class="btn ghost" id="sample">Load a sample</button></div>
+        <div class="row center"><a class="btn primary big" href="#create">${I('plus')} Create your first set</a><button class="btn ghost" id="sample">Load a sample</button></div>
         ${s.apiKey ? '' : '<p class="hint">You will need a Claude API key. Add it in <a href="#settings">Settings</a>.</p>'}
       </section>`;
       app.querySelector('#sample').onclick = async () => { await Store.put(sampleCreation(u)); toast('Sample added'); renderCreations(); };
       return;
     }
     app.innerHTML = `<section>
-      <div class="page-head"><h1>Your creations</h1><a class="btn primary" href="#create">＋ New</a></div>
+      <div class="page-head"><h1>Your creations</h1><a class="btn primary" href="#create">${I('plus')} New</a></div>
       <div class="grid">${list.map(tileHTML).join('')}</div>
     </section>`;
     wireTiles();
@@ -280,23 +525,23 @@
     if (st.matchBest != null) best.push(`Match ${st.matchBest} moves`);
     const cover = c.cover ? `style="background-image:url(${c.cover})"` : '';
     return `<article class="tile" data-theme="${esc(c.theme)}">
-      <div class="tile-cover ${c.cover ? '' : 'no-img'}" ${cover}><span class="tile-emoji">${esc(c.emoji || '📝')}</span><span class="tile-mode">${m.icon} ${esc(m.name)}</span></div>
+      <div class="tile-cover ${c.cover ? '' : 'no-img'}" ${cover}>${c.cover ? '' : `<span class="tile-ico">${I('book')}</span>`}<span class="tile-mode">${I(m.icon)} ${esc(m.name)}</span></div>
       <div class="tile-body">
         <div class="tile-title-row">
           <h2>${esc(c.name)}</h2>
-          <details class="menu"><summary aria-label="More">⋯</summary><div class="menu-list">
-            <button data-action="mode" data-id="${c.id}">🎮 Change game mode</button>
-            <button data-action="theme" data-id="${c.id}">🎨 Change theme</button>
-            <button data-action="rename" data-id="${c.id}">✏️ Rename</button>
-            <button data-action="view" data-id="${c.id}">📄 View cards</button>
-            <button data-action="delete" data-id="${c.id}" class="danger">🗑 Delete</button>
+          <details class="menu"><summary aria-label="More">${I('more')}</summary><div class="menu-list">
+            <button data-action="mode" data-id="${c.id}">${I('gamepad')} Change game mode</button>
+            <button data-action="theme" data-id="${c.id}">${I('palette')} Change theme</button>
+            <button data-action="rename" data-id="${c.id}">${I('pencil')} Rename</button>
+            <button data-action="view" data-id="${c.id}">${I('layers')} View cards</button>
+            <button data-action="delete" data-id="${c.id}" class="danger">${I('trash')} Delete</button>
           </div></details>
         </div>
         <p class="tile-sub">${esc(c.subject || '')}</p>
         <p class="tile-meta">${c.cards.length} cards · ${c.questions.length} questions${best.length ? ' · ' + best.join(' · ') : ''}</p>
         <div class="row tile-actions">
-          <a class="btn primary" href="#study/${c.id}">${m.icon} Study</a>
-          <a class="btn secondary" href="#quiz/${c.id}">📝 Quiz</a>
+          <a class="btn primary" href="#study/${c.id}">${I(m.icon)} Study</a>
+          <a class="btn secondary" href="#quiz/${c.id}">${I('quiz')} Quiz</a>
         </div>
       </div>
     </article>`;
@@ -307,7 +552,7 @@
     const c = await Store.get(id); if (!c) return;
     const refresh = () => route();
     if (action === 'mode') {
-      const v = await modal({ title: 'Game mode', current: c.mode, options: Object.entries(MODES).map(([k, m]) => ({ value: k, label: m.name, desc: m.desc, icon: m.icon })) });
+      const v = await modal({ title: 'Game mode', current: c.mode, options: Object.entries(MODES).map(([k, m]) => ({ value: k, label: m.name, desc: m.desc, icon: I(m.icon) })) });
       if (v) { c.mode = v; await Store.put(c); refresh(); }
     } else if (action === 'theme') {
       const v = await modal({ title: 'Theme', current: c.theme, options: Object.entries(THEMES).map(([k, t]) => ({ value: k, label: t.name, icon: swatchHTML(t) })) });
@@ -324,7 +569,7 @@
   }
 
   // ---------- Create ----------
-  const createState = { name: '', files: [], mode: 'flash', theme: settings().theme, busy: false, status: '', error: '' };
+  const createState = { name: '', files: [], mode: 'flash', theme: settings().theme, busy: false, status: '', error: '', errorKind: '', errorLink: null };
 
   function renderCreate() {
     const s = settings();
@@ -339,14 +584,15 @@
       <div class="field"><span>Photos of your notes</span>
         <label class="dropzone" id="drop">
           <input type="file" id="files" accept="image/*" multiple hidden>
-          <div>📷 <b>Tap to add photos</b><br><small>or drag &amp; drop · several pages at once is fine</small></div>
+          <div class="drop-ico">${I('camera')}</div>
+          <div><b>Tap to add photos</b><br><small>or drag &amp; drop · several pages at once is fine</small></div>
         </label>
         <div class="previews" id="previews"></div>
       </div>
 
       <div class="field"><span>Game mode</span>
         <div class="mode-grid">${Object.entries(MODES).map(([k, m]) => `
-          <button type="button" class="mode-card ${st.mode === k ? 'active' : ''}" data-mode="${k}"><span class="mode-icon">${m.icon}</span><b>${m.name}</b><small>${m.desc}</small></button>`).join('')}</div>
+          <button type="button" class="mode-card ${st.mode === k ? 'active' : ''}" data-mode="${k}"><span class="mode-icon">${I(m.icon)}</span><b>${m.name}</b><small>${m.desc}</small></button>`).join('')}</div>
       </div>
 
       <div class="field"><span>Theme</span>
@@ -354,9 +600,9 @@
           <button type="button" class="theme-chip ${st.theme === k ? 'active' : ''}" data-theme-pick="${k}">${swatchHTML(t)}<span>${t.name}</span></button>`).join('')}</div>
       </div>
 
-      <div class="error" id="error" ${st.error ? '' : 'hidden'}>${esc(st.error)}</div>
+      <div class="error ${st.errorKind === 'credits' ? 'credits' : ''}" id="error" ${st.error ? '' : 'hidden'}>${st.errorKind === 'credits' ? I('key') : ''}<div>${esc(st.error)}${st.errorLink ? ` <a class="btn primary small" href="${esc(st.errorLink)}" target="_blank" rel="noopener">Add credits</a>` : ''}${st.errorKind === 'auth' ? ' <a class="btn ghost small" href="#settings">Open Settings</a>' : ''}</div></div>
       <div class="row">
-        <button class="btn primary big" id="go" ${st.busy ? 'disabled' : ''}>${st.busy ? '<span class="spinner"></span> ' + esc(st.status || 'Working…') : '✨ Generate with Claude'}</button>
+        <button class="btn primary big" id="go" ${st.busy ? 'disabled' : ''}>${st.busy ? '<span class="spinner"></span> ' + esc(st.status || 'Working…') : I('sparkles') + ' Generate with Claude'}</button>
       </div>
       <p class="hint">Photos are compressed in your browser and sent only to the Claude API. Nothing is uploaded anywhere else.</p>
     </section>`;
@@ -380,12 +626,12 @@
   }
   function renderPreviews() {
     const box = app.querySelector('#previews'); if (!box) return;
-    box.innerHTML = createState.files.map((f, i) => `<div class="preview"><img src="${URL.createObjectURL(f)}" alt=""><button type="button" class="x" data-rm="${i}" aria-label="Remove">✕</button><span>${i + 1}</span></div>`).join('');
+    box.innerHTML = createState.files.map((f, i) => `<div class="preview"><img src="${URL.createObjectURL(f)}" alt=""><button type="button" class="x" data-rm="${i}" aria-label="Remove">${I('x')}</button><span>${i + 1}</span></div>`).join('');
     box.querySelectorAll('[data-rm]').forEach(b => b.onclick = () => { createState.files.splice(+b.dataset.rm, 1); renderPreviews(); });
   }
   async function generate() {
     const st = createState, s = settings(), u = currentUser();
-    st.error = '';
+    st.error = ''; st.errorKind = ''; st.errorLink = null;
     if (!st.files.length) { st.error = 'Add at least one photo of your notes.'; return renderCreate(); }
     if (!s.apiKey) { st.error = 'Add your Claude API key in Settings first.'; return renderCreate(); }
     st.busy = true; st.status = 'Compressing photos…'; renderCreate();
@@ -402,7 +648,7 @@
       toast(`Created "${c.name}" · ${c.cards.length} cards, ${c.questions.length} questions`, 4000);
       location.hash = '#creations';
     } catch (e) {
-      st.busy = false; st.status = ''; st.error = e.message || String(e);
+      st.busy = false; st.status = ''; st.error = e.message || String(e); st.errorKind = e.kind || ''; st.errorLink = e.link || null;
       renderCreate();
     }
   }
@@ -410,12 +656,12 @@
     const cards = (r.cards || []).filter(k => k && k.front && k.back).map(k => ({ front: String(k.front).trim(), back: String(k.back).trim() }));
     const questions = (r.questions || []).filter(q => q && q.question && Array.isArray(q.choices) && q.choices.length === 4 && Number.isInteger(q.answer) && q.answer >= 0 && q.answer < 4)
       .map(q => ({ question: String(q.question).trim(), choices: q.choices.map(x => String(x).trim()), answer: q.answer, explanation: String(q.explanation || '').trim() }));
-    const monsters = (r.monsters || []).filter(m => m && m.name).slice(0, 5).map(m => ({ name: String(m.name).trim(), emoji: (m.emoji || '👾').trim() }));
+    const monsters = (r.monsters || []).filter(m => m && m.name).slice(0, 5).map(m => ({ name: String(m.name).trim() }));
     if (cards.length < 2) throw new Error('Claude could not find enough content in these photos. Try clearer or closer photos.');
     return {
       id: uid(), createdAt: Date.now(), owner: meta.owner,
       name: meta.name || r.title || 'Untitled notes',
-      subject: r.subject || '', emoji: r.emoji || '📝', summary: r.summary || '',
+      subject: r.subject || '', summary: r.summary || '',
       mode: meta.mode, theme: meta.theme, cover: meta.cover,
       cards, questions, monsters, stats: {}, model: r._model,
     };
@@ -428,8 +674,20 @@
       <h1>Settings</h1>
 
       <h2>Account</h2>
-      <div class="account-row">${avatarHTML(u, 'md')}<div><b>${esc(u.name)}</b><small>Level ${level(u.stats.xp)} · ${u.stats.xp} XP · joined ${new Date(u.createdAt).toLocaleDateString()}</small></div>
-        <div class="row"><button class="btn ghost" id="acc-avatar">Change avatar</button><button class="btn ghost" id="acc-name">Change username</button><button class="btn ghost danger" id="acc-delete">Delete account</button></div></div>
+      <div class="account-row">${avatarHTML(u, 'md')}
+        <div><b>${esc(u.name)}</b>
+          <small>Level ${level(u.stats.xp)} · ${u.stats.xp} XP · joined ${new Date(u.createdAt).toLocaleDateString()}${u.lastLogin ? ' · last login ' + relTime(u.lastLogin) : ''}</small>
+          <small>${I('lock')} Password ${u.passHash ? (u.passwordChangedAt ? 'changed ' + relTime(u.passwordChangedAt) : 'set') : 'not set'} · ${I('shield')} Security question ${u.recoveryQ ? 'set' : 'not set'}</small>
+        </div>
+      </div>
+      <div class="row">
+        <button class="btn ghost" id="acc-avatar">${I('user')} Change avatar</button>
+        <button class="btn ghost" id="acc-name">${I('pencil')} Change username</button>
+        <button class="btn ghost" id="acc-pass">${I('key')} Change password</button>
+        <button class="btn ghost" id="acc-q">${I('shield')} Security question</button>
+        <button class="btn ghost" id="acc-logout">${I('logout')} Log out</button>
+        <button class="btn ghost danger" id="acc-delete">${I('trash')} Delete account</button>
+      </div>
 
       <h2>Claude</h2>
       <label class="field"><span>Claude API key</span>
@@ -446,20 +704,21 @@
       <h2>Data</h2>
       <p class="hint">Everything lives in this browser. Export to back up or move to another device.</p>
       <div class="row">
-        <button class="btn secondary" id="export">⬇ Export all</button>
-        <label class="btn secondary">⬆ Import <input type="file" id="import" accept="application/json" hidden></label>
+        <button class="btn secondary" id="export">${I('download')} Export all</button>
+        <label class="btn secondary">${I('upload')} Import <input type="file" id="import" accept="application/json" hidden></label>
         <button class="btn ghost" id="sample">Load sample set</button>
         <button class="btn ghost danger" id="wipe">Delete everything</button>
       </div>
     </section>`;
     app.querySelector('#acc-avatar').onclick = async () => { const a = await pickAvatar(u.avatar); if (a) { u.avatar = a; saveUser(u); renderChrome(); renderSettings(); } };
-    app.querySelector('#acc-name').onclick = async () => {
-      const v = await modal({ title: 'Change username', okText: 'Save', body: `<input class="input" value="${esc(u.name)}" maxlength="24">` });
-      if (v && v.trim().length >= 2) { u.name = v.trim(); saveUser(u); renderChrome(); renderSettings(); }
-    };
+    app.querySelector('#acc-name').onclick = () => renameFlow(u, renderSettings);
+    app.querySelector('#acc-pass').onclick = async () => { if (!u.passHash) return toast('Log out and back in to set a password.'); if (await changePasswordFlow(u)) { toast('Password changed'); renderSettings(); } };
+    app.querySelector('#acc-q').onclick = async () => { if (!u.passHash) return toast('Log out and back in to set a password first.'); if (await securityQuestionFlow(u)) { toast('Security question saved'); renderSettings(); } };
+    app.querySelector('#acc-logout').onclick = () => logout(false);
     app.querySelector('#acc-delete').onclick = async () => {
-      const v = await modal({ title: `Delete account "${u.name}"?`, okText: 'Delete', body: '<p>Your stats will be removed. Your note sets stay on this device.</p>' });
-      if (v) { Store.users.save(users().filter(x => x.id !== u.id)); Store.users.setCurrent(null); toast('Account deleted'); location.hash = '#login'; route(); }
+      const v = u.passHash ? await confirmWithPassword(u, `Delete account "${u.name}"?`, 'Your stats will be removed. Your note sets stay on this device.', 'Delete')
+        : await modal({ title: `Delete account "${u.name}"?`, okText: 'Delete', body: '<p>Your stats will be removed. Your note sets stay on this device.</p>' });
+      if (v) { Store.users.save(users().filter(x => x.id !== u.id)); Store.users.setCurrent(null); loginTarget = null; toast('Account deleted'); location.hash = '#login'; route(); }
     };
     const key = app.querySelector('#key');
     app.querySelector('#show').onclick = e => { key.type = key.type === 'password' ? 'text' : 'password'; e.target.textContent = key.type === 'password' ? 'Show' : 'Hide'; };
@@ -487,34 +746,36 @@
     app.querySelector('#sample').onclick = async () => { await Store.put(sampleCreation(u)); toast('Sample added'); };
     app.querySelector('#wipe').onclick = async () => {
       const v = await modal({ title: 'Delete everything?', okText: 'Delete all', body: '<p>All accounts, note sets and settings will be removed from this browser.</p>' });
-      if (v) { await Store.clear(); localStorage.clear(); toast('All data deleted'); location.hash = '#signup'; route(); }
+      if (v) { await Store.clear(); localStorage.clear(); try { sessionStorage.clear(); } catch (e) { /* ignore */ } toast('All data deleted'); location.hash = '#signup'; route(); }
     };
   }
 
   // ---------- Study / Quiz ----------
   async function renderPlay(id, forceMode) {
     const c = await Store.get(id);
-    if (!c) { app.innerHTML = '<section class="empty"><p>That set no longer exists.</p><a class="btn primary" href="#creations">Back</a></section>'; return; }
+    if (!c) { app.innerHTML = `<section class="empty"><p>That set no longer exists.</p><a class="btn primary" href="#creations">Back</a></section>`; return; }
     applyTheme(c.theme);
     const modeKey = forceMode || (Games[c.mode] ? c.mode : 'flash');
-    const m = forceMode === 'quiz' ? { name: 'Quiz', icon: '📝' } : MODES[modeKey];
+    const m = forceMode === 'quiz' ? { name: 'Quiz', icon: 'quiz' } : MODES[modeKey];
     app.innerHTML = `<section class="play">
       <div class="play-head">
-        <a class="btn ghost" href="#creations">← Back</a>
-        <div class="play-title"><b>${esc(c.name)}</b><span>${m.icon} ${esc(m.name)}</span></div>
-        ${forceMode ? `<a class="btn ghost" href="#study/${c.id}">${MODES[c.mode]?.icon || '🎮'} Study</a>`
-                    : `<button class="btn ghost" id="switch">🎮 Mode</button>`}
+        <a class="btn ghost" href="#creations">${I('arrowLeft')} Back</a>
+        <div class="play-title"><b>${esc(c.name)}</b><span>${I(m.icon)} ${esc(m.name)}</span></div>
+        ${forceMode ? `<a class="btn ghost" href="#study/${c.id}">${I(MODES[c.mode]?.icon || 'gamepad')} Study</a>`
+                    : `<button class="btn ghost" id="switch">${I('gamepad')} Mode</button>`}
       </div>
       <div class="game" id="game"></div>
     </section>`;
     const sw = app.querySelector('#switch');
     if (sw) sw.onclick = async () => {
-      const v = await modal({ title: 'Game mode', current: c.mode, options: Object.entries(MODES).map(([k, mm]) => ({ value: k, label: mm.name, desc: mm.desc, icon: mm.icon })) });
+      const v = await modal({ title: 'Game mode', current: c.mode, options: Object.entries(MODES).map(([k, mm]) => ({ value: k, label: mm.name, desc: mm.desc, icon: I(mm.icon) })) });
       if (v && v !== c.mode) { c.mode = v; await Store.put(c); route(); }
     };
     const root = app.querySelector('#game');
+    const u = currentUser();
     const ctx = {
       done: r => onDone(c, r),
+      player: () => avatarHTML(u, 'sprite-avatar'),
       restart: () => { if (cleanup) cleanup(); cleanup = Games[modeKey](root, c, ctx); },
     };
     cleanup = Games[modeKey](root, c, ctx);
@@ -523,7 +784,7 @@
   // ---------- sample ----------
   function sampleCreation(u) {
     return {
-      id: 'sample-' + uid(), createdAt: Date.now(), owner: u ? u.id : undefined, name: 'Photosynthesis (sample)', subject: 'Biology – Plant Processes', emoji: '🌱',
+      id: 'sample-' + uid(), createdAt: Date.now(), owner: u ? u.id : undefined, name: 'Photosynthesis (sample)', subject: 'Biology – Plant Processes',
       summary: 'Photosynthesis converts light energy into chemical energy stored in glucose. It happens in chloroplasts and has two stages: the light-dependent reactions and the Calvin cycle.',
       mode: 'notemon', theme: 'forest', cover: null, stats: {},
       cards: [
@@ -554,10 +815,7 @@
         { question: 'A stack of thylakoids is called a…', choices: ['Stroma', 'Granum', 'Lamella', 'Cristae'], answer: 1, explanation: 'Grana are stacks of thylakoid discs inside the chloroplast.' },
         { question: 'Which colours of light drive photosynthesis most effectively?', choices: ['Green and yellow', 'Red and blue', 'Orange and green', 'Ultraviolet only'], answer: 1, explanation: 'Chlorophyll absorbs red and blue wavelengths most strongly.' },
       ],
-      monsters: [
-        { name: 'Chlorophyllis', emoji: '🌿' }, { name: 'Stomatron', emoji: '🐛' }, { name: 'Thylakoid Kid', emoji: '🦎' },
-        { name: 'RuBisCOlossus', emoji: '🦕' }, { name: 'Photon Phantom', emoji: '👻' },
-      ],
+      monsters: [{ name: 'Chlorophyllis' }, { name: 'Stomatron' }, { name: 'Thylakoid Kid' }, { name: 'RuBisCOlossus' }, { name: 'Photon Phantom' }],
     };
   }
 

@@ -2,12 +2,13 @@
 
 A personal study app: photograph your notes, pick a game mode and a theme, and Claude turns them into flash cards, a monster-battle game, a matching game, a speed round, and a quiz. Everything runs in the browser; there is no server.
 
-Layout: a top bar with log in / sign up / log out, a sidebar with Home, Your creations, Create and a settings gear, and a Home screen showing your avatar, username, level/XP, stats and recent notes. Accounts are local profiles stored in the browser (no email or password).
+Layout: a top bar with log in / sign up / log out, a sidebar with Home, Your creations, Create and a settings gear, and a Home screen showing your avatar, username, level/XP, stats and recent notes. Accounts are local profiles stored in the browser: username, a drawn creature avatar, a password (stored only as a salted PBKDF2 hash) and a security question for password resets. Five wrong passwords lock the account for 30 seconds. No email, no server.
 
 ## Files
 
 - `index.html`, `styles.css` – the page and all themes
-- `js/store.js` – IndexedDB storage (creations) + localStorage (settings)
+- `js/icons.js` – inline SVG line icons, generated creature avatars and Notemon monsters (no emoji anywhere)
+- `js/store.js` – IndexedDB storage (creations) + localStorage (settings, accounts)
 - `js/api.js` – the Claude API call and image compression
 - `js/games.js` – Flash Cards, Notemon, Match, Blitz, and Quiz
 - `js/app.js` – accounts, routing, Home, Your Creations, Create, Settings, sample set
@@ -31,7 +32,7 @@ Then open http://localhost:8765. Opening `index.html` directly from disk also wo
 
 ## First use
 
-1. Sign up with a username and pick an avatar (stored on this device only).
+1. Sign up with a username, password, security question and an avatar (all stored on this device only). Untick "Stay signed in" to be logged out when the tab closes.
 2. Open Settings (gear icon at the bottom of the sidebar) and paste a Claude API key from https://console.anthropic.com. The key is stored only in your browser's localStorage and is sent only to `api.anthropic.com`. It is never in the repo.
 3. Go to Create, add photos of your notes, choose a game mode and theme, and press Generate.
 4. Your new set appears on the Creations page with Study and Quiz buttons.
@@ -45,3 +46,4 @@ If you unzip the download and see only the header bar, check that a `js` folder 
 - Photos are downscaled in the browser (longest side 1568px, JPEG) before being sent, so a page of notes costs roughly 1,500 input tokens.
 - Export/Import in Settings moves your sets between devices as a JSON file.
 - The default model is Claude Opus 5; Sonnet 5 is available in Settings for cheaper generation.
+- If your Anthropic account runs out of credits, the Create page shows an "out of credits" banner with a link to the billing page. Rate limits, overload and bad keys get plain-language messages too.

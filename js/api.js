@@ -6,11 +6,10 @@ const API = (() => {
   const SCHEMA = {
     type: 'object',
     additionalProperties: false,
-    required: ['title', 'subject', 'emoji', 'summary', 'cards', 'questions', 'monsters'],
+    required: ['title', 'subject', 'summary', 'cards', 'questions', 'monsters'],
     properties: {
       title: { type: 'string', description: 'Short title for this set of notes (2-6 words).' },
       subject: { type: 'string', description: 'Subject area, e.g. "Biology - Cell Division".' },
-      emoji: { type: 'string', description: 'One emoji that represents the topic.' },
       summary: { type: 'string', description: 'Two or three sentences summarizing the notes.' },
       cards: {
         type: 'array',
@@ -42,14 +41,13 @@ const API = (() => {
       },
       monsters: {
         type: 'array',
-        description: 'Exactly 5 playful monster names themed on the subject, for the battle game mode.',
+        description: 'Exactly 5 playful monster names themed on the subject, for the battle game mode. Order them from weakest to strongest.',
         items: {
           type: 'object',
           additionalProperties: false,
-          required: ['name', 'emoji'],
+          required: ['name'],
           properties: {
             name: { type: 'string', description: 'A punny monster name related to the notes, e.g. "Mitochondrix".' },
-            emoji: { type: 'string', description: 'A single emoji for the monster.' },
           },
         },
       },
@@ -63,7 +61,7 @@ Read every photo carefully, including margins, diagrams, tables, and small annot
 Guidelines:
 - cards: cover ALL important content. Typically 15-40 cards depending on how dense the notes are. Fronts are short prompts; backs are concise answers (under 15 words when possible).
 - questions: 12-25 multiple-choice questions. Each has exactly 4 choices, exactly one correct, and the wrong choices must be plausible (common misconceptions, similar terms). Vary which index is correct. Include some questions that require applying or connecting ideas, not just recall.
-- monsters: exactly 5, each with a punny name tied to the subject and one emoji.
+- monsters: exactly 5 punny names tied to the subject, ordered weakest to strongest (the last one is the boss).
 - Write in the same language as the notes.`;
 
   function modeHint(mode) {
@@ -73,6 +71,26 @@ Guidelines:
       match: 'The student chose Match (a memory pairing game), so keep card backs especially short (1-6 words) wherever possible.',
       blitz: 'The student chose Blitz (a timed speed round), so questions and choices should be quick to read.',
     }[mode] || '';
+  }
+
+
+  // Turn an API error into something a student can act on.
+  const BILLING_URL = 'https://console.anthropic.com/settings/billing';
+  function friendlyError(status, j) {
+    const raw = (j && j.error && j.error.message) || '';
+    const type = (j && j.error && j.error.type) || '';
+    let msg, link = null, kind = 'api';
+    if (status === 401 || type === 'authentication_error') { msg = 'Your API key was rejected. Check that it is pasted correctly in Settings.'; kind = 'auth'; }
+    else if (type === 'billing_error' || /credit balance|purchase credits|plans & billing|billing/i.test(raw)) {
+      msg = 'You are out of Claude credits, so nothing can be generated right now. Add credits (about $5 covers many sets) and try again.'; link = BILLING_URL; kind = 'credits';
+    }
+    else if (status === 403 || type === 'permission_error') { msg = 'This API key is not allowed to use that model. Pick another model in Settings.'; kind = 'auth'; }
+    else if (status === 429) { msg = 'Claude is rate-limiting your key for the moment. Wait a minute and try again.'; kind = 'rate'; }
+    else if (status === 529 || status >= 500) { msg = 'Claude is overloaded right now. Try again in a few minutes.'; kind = 'busy'; }
+    else if (status === 413) { msg = 'Too many or too large photos in one set. Try fewer photos at once.'; }
+    else msg = raw || (status + ' error from the Claude API.');
+    const err = new Error(msg); err.kind = kind; err.link = link; err.raw = raw; err.status = status;
+    return err;
   }
 
   async function generate({ images, name, mode, apiKey, model, onStatus }) {
@@ -113,10 +131,9 @@ Guidelines:
       throw new Error('Network error reaching the Claude API: ' + e.message);
     }
     if (!res.ok) {
-      let msg = res.status + ' ' + res.statusText;
-      try { const j = await res.json(); if (j.error && j.error.message) msg = j.error.message; } catch (e) { /* ignore */ }
-      if (res.status === 401) msg = 'Invalid API key (401). Check it in Settings.';
-      throw new Error(msg);
+      let j = null;
+      try { j = await res.json(); } catch (e) { /* ignore */ }
+      throw friendlyError(res.status, j);
     }
     const data = await res.json();
     if (data.stop_reason === 'refusal') {
@@ -168,5 +185,5 @@ Guidelines:
     return draw(bmp, 480).toDataURL('image/jpeg', 0.7);
   }
 
-  return { generate, toBase64, thumbnail, SCHEMA };
+  return { generate, toBase64, thumbnail, friendlyError, SCHEMA };
 })();
