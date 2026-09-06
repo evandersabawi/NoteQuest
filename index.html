@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>NoteQuest</title>
+<meta name="theme-color" content="#0f1020">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📝</text></svg>">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body data-theme="midnight">
+<header class="topbar">
+  <a href="#home" class="brand">📝 NoteQuest</a>
+  <nav>
+    <a href="#home" data-nav="home">Creations</a>
+    <a href="#create" data-nav="create">Create</a>
+    <a href="#settings" data-nav="settings">Settings</a>
+  </nav>
+</header>
+<main id="app"></main>
+<div id="toast" class="toast" hidden></div>
+<div id="modal" class="modal" hidden></div>
+<script src="js/store.js"></script>
+<script src="js/api.js"></script>
+<script src="js/games.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
