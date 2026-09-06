@@ -3,6 +3,10 @@
 Run:  tools/.venv/Scripts/python tools/proof.py [word] [voice]
 """
 import subprocess, sys, time
+try:
+    sys.stdout.reconfigure(encoding="utf-8")
+except Exception:
+    pass
 from pathlib import Path
 
 word = sys.argv[1] if len(sys.argv) > 1 else "photosynthesis"
