@@ -7,6 +7,10 @@ Exit code 0 only when every sentence of every lecture has a manifest entry, an e
 non-empty .opus file, and word timings that line up with the words on screen.
 """
 import sys
+try:
+    sys.stdout.reconfigure(encoding="utf-8")  # Kokoro prints IPA symbols the Windows console cannot show otherwise
+except Exception:
+    pass
 from pathlib import Path
 
 from audio_common import ROOT, load_creations, load_manifest, sentences_of, sha, split_words

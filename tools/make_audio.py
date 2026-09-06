@@ -19,6 +19,10 @@ import datetime as dt
 import os
 import subprocess
 import sys
+try:
+    sys.stdout.reconfigure(encoding="utf-8")  # Kokoro prints IPA symbols the Windows console cannot show otherwise
+except Exception:
+    pass
 import time
 from pathlib import Path
 
