@@ -1,0 +1,39 @@
+{
+  "title": "Photosynthesis, explained",
+  "sections": [
+    {
+      "heading": "Why it matters",
+      "paragraphs": [
+        "Every breath you take depends on photosynthesis. Plants capture sunlight and turn it into the sugar that feeds almost every food chain on Earth, and the oxygen they release is the oxygen in your lungs right now.",
+        "So let us start with where it all happens."
+      ]
+    },
+    {
+      "heading": "The chloroplast",
+      "paragraphs": [
+        "Photosynthesis takes place inside chloroplasts. Inside each chloroplast are stacks of flat discs called thylakoids, and a stack of them is called a granum. The fluid that surrounds the stacks is the stroma.",
+        "Pause and think: which part do you expect handles light? The thylakoid membranes do, because that is where the green pigment chlorophyll sits."
+      ]
+    },
+    {
+      "heading": "Two stages",
+      "paragraphs": [
+        "The first stage is the light dependent reactions. In the thylakoid membranes, chlorophyll absorbs red and blue light and uses that energy to split water. Splitting water releases oxygen and produces two energy carriers, ATP and NADPH.",
+        "The second stage is the Calvin cycle, which runs in the stroma. Here an enzyme called RuBisCO grabs carbon dioxide and attaches it to a molecule called RuBP. Using the ATP and NADPH from stage one, the cycle builds glucose."
+      ]
+    },
+    {
+      "heading": "What limits it",
+      "paragraphs": [
+        "Three things can hold photosynthesis back: light intensity, carbon dioxide concentration, and temperature. Whichever one is in shortest supply sets the pace, and that is called the limiting factor.",
+        "Here is a quick check. A plant has plenty of light and water, but it is still slow. What is probably missing? Carbon dioxide, because light and water are already taken care of."
+      ]
+    },
+    {
+      "heading": "Recap",
+      "paragraphs": [
+        "Photosynthesis happens in chloroplasts. Light reactions in the thylakoids make ATP, NADPH and oxygen. The Calvin cycle in the stroma uses those to turn carbon dioxide into glucose. Leaves look green because chlorophyll reflects green light, and the limiting factor is whichever ingredient runs short first."
+      ]
+    }
+  ]
+}

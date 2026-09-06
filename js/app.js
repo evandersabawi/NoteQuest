@@ -482,7 +482,7 @@
     </section>`;
     app.querySelector('#avatarBtn').onclick = async () => { const a = await pickAvatar(u.avatar); if (a) { u.avatar = a; saveUser(u); renderChrome(); renderHome(); } };
     app.querySelector('#editName').onclick = () => renameFlow(u, renderHome);
-    const smp = app.querySelector('#sample'); if (smp) smp.onclick = async () => { await Store.put(sampleCreation(u)); toast('Sample added'); renderHome(); };
+    const smp = app.querySelector('#sample'); if (smp) smp.onclick = async () => { await Store.put(await sampleCreation(u)); toast('Sample added'); renderHome(); };
     wireTiles();
   }
   async function renameFlow(u, after) {
@@ -507,7 +507,7 @@
         <div class="row center"><a class="btn primary big" href="#create">${I('plus')} Create your first set</a><button class="btn ghost" id="sample">Load a sample</button></div>
         ${s.apiKey ? '' : '<p class="hint">You will need a Claude API key. Add it in <a href="#settings">Settings</a>.</p>'}
       </section>`;
-      app.querySelector('#sample').onclick = async () => { await Store.put(sampleCreation(u)); toast('Sample added'); renderCreations(); };
+      app.querySelector('#sample').onclick = async () => { await Store.put(await sampleCreation(u)); toast('Sample added'); renderCreations(); };
       return;
     }
     app.innerHTML = `<section>
@@ -748,7 +748,7 @@
         toast(`Imported ${n} set${n === 1 ? '' : 's'}`);
       } catch (err) { toast('Import failed: ' + err.message); }
     };
-    app.querySelector('#sample').onclick = async () => { await Store.put(sampleCreation(u)); toast('Sample added'); };
+    app.querySelector('#sample').onclick = async () => { await Store.put(await sampleCreation(u)); toast('Sample added'); };
     app.querySelector('#wipe').onclick = async () => {
       const v = await modal({ title: 'Delete everything?', okText: 'Delete all', body: '<p>All accounts, note sets and settings will be removed from this browser.</p>' });
       if (v) { await Store.clear(); localStorage.clear(); try { sessionStorage.clear(); } catch (e) { /* ignore */ } toast('All data deleted'); location.hash = '#signup'; route(); }
@@ -787,6 +787,12 @@
         save: cc => Store.put(cc),
         done: r => onDone(c, r),
         confirm: (title, text) => modal({ title, okText: 'Rewrite', body: `<p>${esc(text)}</p>` }),
+        exportForAudio: cc => {
+          const blob = new Blob([JSON.stringify({ notequest: 2, creations: [{ id: cc.id, name: cc.name, lecture: cc.lecture }] })], { type: 'application/json' });
+          const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+          a.download = `lecture-${cc.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'set'}.json`; a.click();
+          toast('Downloaded. Run tools/make_audio.py on that file, then push the audio folder.', 5000);
+        },
       });
       return;
     }
@@ -799,8 +805,11 @@
   }
 
   // ---------- sample ----------
-  function sampleCreation(u) {
+  async function sampleCreation(u) {
+    let lecture = null;
+    try { const r = await fetch('audio/sample_lecture.json', { cache: 'no-cache' }); if (r.ok) { const L = await r.json(); lecture = { title: L.title, sections: L.sections, createdAt: Date.now(), model: 'sample' }; } } catch (e) { /* offline or file:// */ }
     return {
+      lecture,
       id: 'sample-' + uid(), createdAt: Date.now(), owner: u ? u.id : undefined, name: 'Photosynthesis (sample)', subject: 'Biology – Plant Processes',
       summary: 'Photosynthesis converts light energy into chemical energy stored in glucose. It happens in chloroplasts and has two stages: the light-dependent reactions and the Calvin cycle.',
       mode: 'notemon', theme: 'forest', cover: null, stats: {},

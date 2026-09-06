@@ -1,2 +1,4 @@
 .claude/
 *.zip
+tools/.venv/
+tools/_work/
