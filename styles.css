@@ -128,7 +128,7 @@ select.input { appearance: auto; }
 .tile-sub { margin: .2rem 0 0; color: var(--muted); font-size: .9rem; }
 .tile-meta { margin: .4rem 0 0; font-size: .8rem; color: var(--muted); }
 .tile-actions { margin-top: auto; padding-top: .8rem; }
-.tile-actions .btn { flex: 1; }
+.tile-actions .btn { flex: 1; padding: .55rem .4rem; font-size: .88rem; gap: .3rem; }
 .menu { position: relative; }
 .menu summary { list-style: none; cursor: pointer; padding: .2rem .4rem; border-radius: 8px; color: var(--muted); display: inline-flex; }
 .menu summary::-webkit-details-marker { display: none; }
@@ -400,3 +400,23 @@ svg.avatar.xl { width: 96px; height: 96px; box-shadow: var(--shadow); }
 .error .ico { width: 22px; height: 22px; flex: 0 0 auto; margin-top: .1rem; }
 .error.credits { background: color-mix(in srgb, #f59e0b 20%, var(--card)); border-color: #f59e0b; }
 .error .btn.small { padding: .35rem .7rem; font-size: .85rem; margin-left: .4rem; vertical-align: middle; }
+
+/* ---------- lecture ---------- */
+.lecture { max-width: 760px; margin: 0 auto; }
+.lec-controls { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin-bottom: .6rem; position: sticky; top: calc(var(--topbar-h) + .4rem); z-index: 5; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(8px); padding: .5rem; border-radius: 14px; border: 1px solid var(--line); }
+.lec-sel { display: inline-flex; align-items: center; gap: .35rem; color: var(--muted); }
+.lec-sel .input { width: auto; padding: .45rem .6rem; font-size: .9rem; max-width: 220px; }
+.lec-meta { display: flex; justify-content: space-between; gap: 1rem; color: var(--muted); font-size: .85rem; margin: -.4rem 0 .8rem; flex-wrap: wrap; }
+.lec-loading { text-align: center; padding: 3rem 1rem; color: var(--muted); }
+.lec-loading .spinner { width: 2rem; height: 2rem; border-width: 3px; color: var(--accent); }
+.lec-transcript { background: var(--card); border: 1px solid var(--line); border-radius: 20px; padding: 1.4rem 1.5rem 2rem; box-shadow: var(--shadow); font-size: 1.12rem; line-height: 1.8; }
+.lec-transcript h2 { margin: 0 0 .8rem; font-size: 1.5rem; }
+.lec-heading { margin: 1.4rem 0 .4rem; font-size: 1rem; text-transform: uppercase; letter-spacing: .08em; color: var(--accent); }
+.lec-transcript p { margin: 0 0 .9rem; }
+.sent { cursor: pointer; border-radius: 6px; padding: .05em .05em; transition: background .25s; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+.sent:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.sent.current { background: color-mix(in srgb, var(--accent) 16%, transparent); }
+.w { transition: color .15s, background .15s; border-radius: 4px; }
+.w.spoken, .sent.spoken .w { color: var(--accent); }
+.w.current { background: var(--accent2); color: var(--on-accent); padding: 0 .12em; }
+@media (max-width: 560px) { .lec-transcript { padding: 1rem; font-size: 1.02rem; } .lec-controls { position: static; } }

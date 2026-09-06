@@ -60,6 +60,7 @@
       case 'match': c.stats.matchBest = c.stats.matchBest == null ? r.moves : Math.min(c.stats.matchBest, r.moves); s.matchGames++; s.matchBest = s.matchBest == null ? r.moves : Math.min(s.matchBest, r.moves); s.xp += 30; break;
       case 'blitz': c.stats.blitzBest = Math.max(c.stats.blitzBest || 0, r.score); s.blitzGames++; s.blitzBest = Math.max(s.blitzBest, r.score); s.xp += Math.round(r.score / 20); break;
       case 'quiz': c.stats.quizBest = Math.max(c.stats.quizBest || 0, r.pct); s.quizzes++; s.quizPctTotal += r.pct; s.quizBest = Math.max(s.quizBest, r.pct); s.xp += r.score * 10; break;
+      case 'lecture': c.stats.lectures = (c.stats.lectures || 0) + 1; s.lectures = (s.lectures || 0) + 1; s.xp += 20; break;
     }
     await Store.put(c); saveUser(u); renderChrome();
   }
@@ -183,6 +184,7 @@
       case 'settings': applyTheme(settings().theme); setNav('settings'); return renderSettings();
       case 'study': setNav(''); return renderPlay(id, null);
       case 'quiz': setNav(''); return renderPlay(id, 'quiz');
+      case 'lecture': setNav(''); return renderPlay(id, 'lecture');
       default: applyTheme(settings().theme); setNav('home'); return renderHome();
     }
   }
@@ -457,6 +459,7 @@
       ['swords', s.monstersCaught, 'monsters caught'],
       ['zap', s.blitzBest, 'blitz best'],
       ['grid', s.matchBest == null ? '–' : s.matchBest, 'match best (moves)'],
+      ['lecture', s.lectures || 0, 'lectures heard'],
       ['flame', st, 'day streak'],
     ];
     app.innerHTML = `<section class="home">
@@ -523,6 +526,7 @@
     if (st.notemonBest) best.push(`Notemon ${st.notemonBest}/5`);
     if (st.blitzBest) best.push(`Blitz ${st.blitzBest}`);
     if (st.matchBest != null) best.push(`Match ${st.matchBest} moves`);
+    if (st.lectures) best.push(`Lecture heard ${st.lectures}x`);
     const cover = c.cover ? `style="background-image:url(${c.cover})"` : '';
     return `<article class="tile" data-theme="${esc(c.theme)}">
       <div class="tile-cover ${c.cover ? '' : 'no-img'}" ${cover}>${c.cover ? '' : `<span class="tile-ico">${I('book')}</span>`}<span class="tile-mode">${I(m.icon)} ${esc(m.name)}</span></div>
@@ -542,6 +546,7 @@
         <div class="row tile-actions">
           <a class="btn primary" href="#study/${c.id}">${I(m.icon)} Study</a>
           <a class="btn secondary" href="#quiz/${c.id}">${I('quiz')} Quiz</a>
+          <a class="btn secondary" href="#lecture/${c.id}">${I('lecture')} Lecture</a>
         </div>
       </div>
     </article>`;
@@ -756,7 +761,7 @@
     if (!c) { app.innerHTML = `<section class="empty"><p>That set no longer exists.</p><a class="btn primary" href="#creations">Back</a></section>`; return; }
     applyTheme(c.theme);
     const modeKey = forceMode || (Games[c.mode] ? c.mode : 'flash');
-    const m = forceMode === 'quiz' ? { name: 'Quiz', icon: 'quiz' } : MODES[modeKey];
+    const m = forceMode === 'quiz' ? { name: 'Quiz', icon: 'quiz' } : forceMode === 'lecture' ? { name: 'Lecture', icon: 'lecture' } : MODES[modeKey];
     app.innerHTML = `<section class="play">
       <div class="play-head">
         <a class="btn ghost" href="#creations">${I('arrowLeft')} Back</a>
@@ -773,6 +778,18 @@
     };
     const root = app.querySelector('#game');
     const u = currentUser();
+    if (forceMode === 'lecture') {
+      const s = settings();
+      cleanup = Lecture.render(root, c, {
+        settings: s,
+        saveSettings: patch => Store.settings.update(patch),
+        generate: () => API.lecture({ creation: c, apiKey: s.apiKey, model: s.model }),
+        save: cc => Store.put(cc),
+        done: r => onDone(c, r),
+        confirm: (title, text) => modal({ title, okText: 'Rewrite', body: `<p>${esc(text)}</p>` }),
+      });
+      return;
+    }
     const ctx = {
       done: r => onDone(c, r),
       player: () => avatarHTML(u, 'sprite-avatar'),

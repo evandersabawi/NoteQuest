@@ -64,6 +64,34 @@ Guidelines:
 - monsters: exactly 5 punny names tied to the subject, ordered weakest to strongest (the last one is the boss).
 - Write in the same language as the notes.`;
 
+  const LECTURE_SCHEMA = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['title', 'sections'],
+    properties: {
+      title: { type: 'string', description: 'Title of the lecture (3-8 words).' },
+      sections: {
+        type: 'array',
+        description: '4 to 7 sections in teaching order.',
+        items: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['heading', 'paragraphs'],
+          properties: {
+            heading: { type: 'string', description: 'Short on-screen heading for the section (not spoken).' },
+            paragraphs: { type: 'array', items: { type: 'string' }, description: 'Spoken paragraphs, 2-5 sentences each. Plain text only.' },
+          },
+        },
+      },
+    },
+  };
+
+  const LECTURE_SYSTEM = `You are a warm, engaging teacher recording a spoken lecture for one student, based on that student's own notes.
+
+Write exactly what you would say out loud. Natural spoken sentences only: no markdown, no bullet points, no lists, no stage directions, no headings inside the paragraphs (headings are shown on screen, not spoken). Avoid symbols that read badly aloud; say "carbon dioxide" rather than "CO2" unless the notes are formula-heavy.
+
+Aim for 700 to 1100 words in 4 to 7 sections. Open with a one-or-two-sentence hook about why the topic matters. Teach the ideas in a sensible order so each builds on the last. Use a concrete example or analogy where it helps. Once or twice, ask the student a quick "pause and think" question, then answer it. Finish with a short recap of the key points. Write in the same language as the notes. Do not invent facts that are not supported by the notes.`;
+
   function modeHint(mode) {
     return {
       flash: 'The student chose Flash Cards, so prioritize a complete, well-ordered card set.',
@@ -72,7 +100,6 @@ Guidelines:
       blitz: 'The student chose Blitz (a timed speed round), so questions and choices should be quick to read.',
     }[mode] || '';
   }
-
 
   // Turn an API error into something a student can act on.
   const BILLING_URL = 'https://console.anthropic.com/settings/billing';
@@ -93,24 +120,16 @@ Guidelines:
     return err;
   }
 
-  async function generate({ images, name, mode, apiKey, model, onStatus }) {
+  // One structured-output request to Claude. Returns the parsed JSON object.
+  async function request({ apiKey, model, system, content, schema, maxTokens = 16000 }) {
     if (!apiKey) throw new Error('No API key set. Add one in Settings.');
-    if (!images.length) throw new Error('Add at least one photo of your notes.');
-    onStatus && onStatus('Reading your notes with Claude…');
-
-    const content = images.map(data => ({ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data } }));
-    let text = `Here are ${images.length} photo(s) of my notes. Build a complete study set from them.`;
-    if (name) text += ` I call this set "${name}".`;
-    text += ' ' + modeHint(mode);
-    content.push({ type: 'text', text });
-
     const body = {
       model,
-      max_tokens: 16000,
-      system: SYSTEM,
+      max_tokens: maxTokens,
+      system,
       thinking: { type: 'adaptive' },
       messages: [{ role: 'user', content }],
-      output_config: { format: { type: 'json_schema', schema: SCHEMA } },
+      output_config: { format: { type: 'json_schema', schema } },
     };
     const headers = {
       'content-type': 'application/json',
@@ -123,12 +142,11 @@ Guidelines:
       body.fallbacks = 'default';
       headers['anthropic-beta'] = 'server-side-fallback-2026-07-01';
     }
-
     let res;
     try {
       res = await fetch(ENDPOINT, { method: 'POST', headers, body: JSON.stringify(body) });
     } catch (e) {
-      throw new Error('Network error reaching the Claude API: ' + e.message);
+      const err = new Error('Could not reach the Claude API. Check your internet connection.'); err.kind = 'network'; throw err;
     }
     if (!res.ok) {
       let j = null;
@@ -143,10 +161,36 @@ Guidelines:
     if (data.stop_reason === 'max_tokens') throw new Error('The response was cut off. Try fewer photos at once.');
     const out = data.content.filter(b => b.type === 'text').map(b => b.text).join('');
     let parsed;
-    try { parsed = JSON.parse(out); } catch (e) { throw new Error('Could not parse the generated study set. Please try again.'); }
+    try { parsed = JSON.parse(out); } catch (e) { throw new Error('Could not parse the generated result. Please try again.'); }
     parsed._model = data.model;
     parsed._usage = data.usage;
     return parsed;
+  }
+
+  // Photos of notes -> study set.
+  async function generate({ images, name, mode, apiKey, model, onStatus }) {
+    if (!images.length) throw new Error('Add at least one photo of your notes.');
+    onStatus && onStatus('Reading your notes with Claude…');
+    const content = images.map(data => ({ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data } }));
+    let text = `Here are ${images.length} photo(s) of my notes. Build a complete study set from them.`;
+    if (name) text += ` I call this set "${name}".`;
+    text += ' ' + modeHint(mode);
+    content.push({ type: 'text', text });
+    return request({ apiKey, model, system: SYSTEM, content, schema: SCHEMA });
+  }
+
+  // Study set -> spoken lecture script (text only, no photos needed).
+  async function lecture({ creation, apiKey, model }) {
+    const c = creation;
+    const lines = [
+      `Set title: ${c.name}`, `Subject: ${c.subject || 'unknown'}`, `Summary: ${c.summary || ''}`, '',
+      'Flash cards (front -> back):',
+      ...c.cards.map(k => `- ${k.front} -> ${k.back}`), '',
+      'Quiz questions the student will face (use them to decide what to emphasise):',
+      ...c.questions.slice(0, 15).map(q => `- ${q.question} (answer: ${q.choices[q.answer]})`),
+      '', 'Write the lecture now.',
+    ];
+    return request({ apiKey, model, system: LECTURE_SYSTEM, content: [{ type: 'text', text: lines.join('\n') }], schema: LECTURE_SCHEMA, maxTokens: 8000 });
   }
 
   // ---------- image helpers ----------
@@ -185,5 +229,5 @@ Guidelines:
     return draw(bmp, 480).toDataURL('image/jpeg', 0.7);
   }
 
-  return { generate, toBase64, thumbnail, friendlyError, SCHEMA };
+  return { generate, lecture, toBase64, thumbnail, friendlyError, SCHEMA };
 })();
