@@ -10,16 +10,37 @@
 </head>
 <body data-theme="midnight">
 <header class="topbar">
-  <a href="#home" class="brand">📝 NoteQuest</a>
-  <nav>
-    <a href="#home" data-nav="home">Creations</a>
-    <a href="#create" data-nav="create">Create</a>
-    <a href="#settings" data-nav="settings">Settings</a>
-  </nav>
+  <div class="top-left">
+    <button class="icon-btn menu-btn" id="menuBtn" aria-label="Menu">☰</button>
+    <a href="#home" class="brand">📝 NoteQuest</a>
+  </div>
+  <div class="top-right" id="topRight"></div>
 </header>
-<main id="app"></main>
+<div class="layout">
+  <div class="backdrop" id="backdrop" hidden></div>
+  <aside class="sidebar" id="sidebar">
+    <div class="side-user" id="sideUser"></div>
+    <nav>
+      <a href="#home" data-nav="home"><span class="nav-ico">🏠</span> Home</a>
+      <a href="#creations" data-nav="creations"><span class="nav-ico">📚</span> Your creations</a>
+      <a href="#create" data-nav="create"><span class="nav-ico">✨</span> Create</a>
+    </nav>
+    <a href="#settings" data-nav="settings" class="side-settings" aria-label="Settings" title="Settings">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      <span>Settings</span>
+    </a>
+  </aside>
+  <main id="app"><noscript>NoteQuest needs JavaScript enabled.</noscript></main>
+</div>
 <div id="toast" class="toast" hidden></div>
 <div id="modal" class="modal" hidden></div>
+<script>
+  // Surface any startup error instead of a silent blank page.
+  window.addEventListener('error', function (e) {
+    var el = document.getElementById('app');
+    if (el) el.innerHTML = '<div class="error" style="margin:1rem">Something went wrong while loading NoteQuest:<br><code>' + (e.message || e) + '</code><br><small>Make sure the <b>js/</b> folder sits next to index.html.</small></div>';
+  });
+</script>
 <script src="js/store.js"></script>
 <script src="js/api.js"></script>
 <script src="js/games.js"></script>

@@ -2,13 +2,15 @@
 
 A personal study app: photograph your notes, pick a game mode and a theme, and Claude turns them into flash cards, a monster-battle game, a matching game, a speed round, and a quiz. Everything runs in the browser; there is no server.
 
+Layout: a top bar with log in / sign up / log out, a sidebar with Home, Your creations, Create and a settings gear, and a Home screen showing your avatar, username, level/XP, stats and recent notes. Accounts are local profiles stored in the browser (no email or password).
+
 ## Files
 
 - `index.html`, `styles.css` – the page and all themes
 - `js/store.js` – IndexedDB storage (creations) + localStorage (settings)
 - `js/api.js` – the Claude API call and image compression
 - `js/games.js` – Flash Cards, Notemon, Match, Blitz, and Quiz
-- `js/app.js` – routing, Your Creations, Create, Settings, sample set
+- `js/app.js` – accounts, routing, Home, Your Creations, Create, Settings, sample set
 
 ## Run locally
 
@@ -29,11 +31,14 @@ Then open http://localhost:8765. Opening `index.html` directly from disk also wo
 
 ## First use
 
-1. Open Settings and paste a Claude API key from https://console.anthropic.com. The key is stored only in your browser's localStorage and is sent only to `api.anthropic.com`. It is never in the repo.
-2. Go to Create, add photos of your notes, choose a game mode and theme, and press Generate.
-3. Your new set appears on the Creations page with Study and Quiz buttons.
+1. Sign up with a username and pick an avatar (stored on this device only).
+2. Open Settings (gear icon at the bottom of the sidebar) and paste a Claude API key from https://console.anthropic.com. The key is stored only in your browser's localStorage and is sent only to `api.anthropic.com`. It is never in the repo.
+3. Go to Create, add photos of your notes, choose a game mode and theme, and press Generate.
+4. Your new set appears on the Creations page with Study and Quiz buttons.
 
-Use "Load sample set" in Settings to try the games without an API key.
+Use "Load a sample" on the Home screen (or in Settings) to try the games without an API key.
+
+If you unzip the download and see only the header bar, check that a `js` folder with four files sits next to `index.html`.
 
 ## Notes
 

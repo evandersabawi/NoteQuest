@@ -75,7 +75,7 @@ const Games = (() => {
       root.querySelector('#got').onclick = () => { queue.shift(); done++; flipped = false; render(); };
     }
     function end() {
-      ctx.stat('flashRuns', (c.stats?.flashRuns || 0) + 1);
+      ctx.done({ type: 'flash', cards: total, repeats: again });
       endScreen(root, { title: 'Deck complete!', emoji: '🎉', stats: [['cards', total], ['repeats', again]], again: ctx.restart });
     }
     render();
@@ -158,7 +158,7 @@ const Games = (() => {
     }
     function win() {
       alive = false;
-      ctx.stat('notemonBest', Math.max(c.stats?.notemonBest || 0, caught.length));
+      ctx.done({ type: 'notemon', caught: caught.length, won: true, accuracy: pct(correctCount, answered) });
       endScreen(root, {
         title: 'You caught them all!', emoji: '🏆',
         stats: [['caught', caught.length], ['accuracy', pct(correctCount, answered) + '%'], ['HP left', hp]],
@@ -168,7 +168,7 @@ const Games = (() => {
     }
     function lose() {
       alive = false;
-      ctx.stat('notemonBest', Math.max(c.stats?.notemonBest || 0, caught.length));
+      ctx.done({ type: 'notemon', caught: caught.length, won: false, accuracy: pct(correctCount, answered) });
       endScreen(root, {
         title: 'You fainted…', emoji: '💫',
         stats: [['caught', caught.length], ['accuracy', pct(correctCount, answered) + '%']],
@@ -206,8 +206,7 @@ const Games = (() => {
         if (matched.size === tiles.length) {
           clearInterval(timer);
           const secs = Math.floor((Date.now() - start) / 1000);
-          const best = c.stats?.matchBest;
-          ctx.stat('matchBest', best == null ? moves : Math.min(best, moves));
+          ctx.done({ type: 'match', moves, secs });
           await wait(500);
           endScreen(root, { title: 'All matched!', emoji: '🧩', stats: [['moves', moves], ['time', fmt(secs)], ['pairs', pairs.length]], again: ctx.restart });
         }
@@ -258,7 +257,7 @@ const Games = (() => {
     }
     function finish() {
       over = true; clearInterval(timer);
-      ctx.stat('blitzBest', Math.max(c.stats?.blitzBest || 0, score));
+      ctx.done({ type: 'blitz', score, answered, correct });
       endScreen(root, { title: "Time's up!", emoji: '⚡', stats: [['score', score], ['answered', answered], ['accuracy', pct(correct, answered) + '%']], again: ctx.restart });
     }
     ask();
@@ -298,7 +297,7 @@ const Games = (() => {
     }
     function end() {
       const p = pct(score, total);
-      ctx.stat('quizBest', Math.max(c.stats?.quizBest || 0, p));
+      ctx.done({ type: 'quiz', score, total, pct: p });
       const review = missed.length ? `<div class="review"><h3>Review (${missed.length})</h3>${missed.map(m =>
         `<div class="review-item"><p>${esc(m.q)}</p><div><span class="pill bad">You: ${esc(m.choices[m.picked])}</span> <span class="pill good">Answer: ${esc(m.choices[m.answer])}</span></div>${m.explanation ? `<small>${esc(m.explanation)}</small>` : ''}</div>`).join('')}</div>` : '';
       endScreen(root, {
