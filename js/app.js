@@ -527,6 +527,8 @@
     if (st.blitzBest) best.push(`Blitz ${st.blitzBest}`);
     if (st.matchBest != null) best.push(`Match ${st.matchBest} moves`);
     if (st.lectures) best.push(`Lecture heard ${st.lectures}x`);
+    const prepping = prep.get(c.id);
+    const lectureNote = prepping ? `<span class="tile-prep"><span class="spinner"></span> ${esc(prepping.text)}</span>` : (c.lecture ? `<span class="tile-prep ok">${I('check')} Lecture ready</span>` : '');
     const cover = c.cover ? `style="background-image:url(${c.cover})"` : '';
     return `<article class="tile" data-theme="${esc(c.theme)}">
       <div class="tile-cover ${c.cover ? '' : 'no-img'}" ${cover}>${c.cover ? '' : `<span class="tile-ico">${I('book')}</span>`}<span class="tile-mode">${I(m.icon)} ${esc(m.name)}</span></div>
@@ -543,6 +545,7 @@
         </div>
         <p class="tile-sub">${esc(c.subject || '')}</p>
         <p class="tile-meta">${c.cards.length} cards · ${c.questions.length} questions${best.length ? ' · ' + best.join(' · ') : ''}</p>
+        ${lectureNote}
         <div class="row tile-actions">
           <a class="btn primary" href="#study/${c.id}">${I(m.icon)} Study</a>
           <a class="btn secondary" href="#quiz/${c.id}">${I('quiz')} Quiz</a>
@@ -652,6 +655,7 @@
       st.files = []; st.name = ''; st.busy = false; st.status = '';
       toast(`Created "${c.name}" · ${c.cards.length} cards, ${c.questions.length} questions`, 4000);
       location.hash = '#creations';
+      if (s.autoLecture !== false) prepareLecture(c);
     } catch (e) {
       st.busy = false; st.status = ''; st.error = e.message || String(e); st.errorKind = e.kind || ''; st.errorLink = e.link || null;
       renderCreate();
@@ -670,6 +674,28 @@
       mode: meta.mode, theme: meta.theme, cover: meta.cover,
       cards, questions, monsters, stats: {}, model: r._model,
     };
+  }
+
+  // Background: write the lecture with Claude, then generate its audio, right after a set is created.
+  const prep = new Map(); // creation id -> { text }
+  async function prepareLecture(c) {
+    if (prep.has(c.id)) return;
+    prep.set(c.id, { text: 'Writing lecture…' });
+    try {
+      const s = settings();
+      if (!c.lecture) {
+        const r = await API.lecture({ creation: c, apiKey: s.apiKey, model: s.model });
+        const sections = (r.sections || []).map(x => ({ heading: String(x.heading || '').trim(), paragraphs: (x.paragraphs || []).map(t => String(t).trim()).filter(Boolean) })).filter(x => x.paragraphs.length);
+        if (!sections.length) throw new Error('empty lecture');
+        c.lecture = { title: r.title || c.name, sections, createdAt: Date.now(), model: r._model };
+        c.audioClips = {};
+        await Store.put(c);
+      }
+      await AudioGen.ensure(c, { save: cc => Store.put(cc), onProgress: pr => { prep.set(c.id, { text: pr.text }); } });
+      toast(`Lecture and audio ready for "${c.name}"`, 4000);
+    } catch (e) {
+      toast(`Lecture prep for "${c.name}" stopped: ${e.message || e}. Open Lecture to retry.`, 6000);
+    } finally { prep.delete(c.id); if (/^#(home|creations)/.test(location.hash) || !location.hash) route(); }
   }
 
   // ---------- Settings ----------
@@ -701,6 +727,20 @@
       <label class="field"><span>Model</span>
         <select class="input" id="model">${MODELS.map(([v, l]) => `<option value="${v}" ${s.model === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
 
+      <h2>Lecture audio</h2>
+      <p class="hint">Lectures are read by Kokoro, a free voice model. Audio is generated once per lecture and saved on this device. By default it runs right inside your browser (a 92 MB voice model downloads the first time, then it is cached). Nothing to install.</p>
+      <label class="check"><input type="checkbox" id="autoLecture" ${s.autoLecture === false ? '' : 'checked'}> Write the lecture and its audio automatically when I create a set</label>
+      <label class="check"><input type="checkbox" id="audioGpu" ${s.audioGpu ? 'checked' : ''} ${navigator.gpu ? '' : 'disabled'}> Use the graphics card (faster; downloads the full 326 MB model)${navigator.gpu ? '' : ' <small>· not available in this browser</small>'}</label>
+      <label class="field"><span>Kokoro voice</span>
+        <select class="input" id="kokoroVoice">${['af_heart', 'af_bella', 'af_sky', 'af_nicole', 'af_sarah', 'am_michael', 'am_adam', 'bf_emma', 'bm_george', 'bm_lewis'].map(v => `<option value="${v}" ${(s.kokoroVoice || 'af_heart') === v ? 'selected' : ''}>${v}</option>`).join('')}</select>
+        <small>af/am = American female/male, bf/bm = British. Changing the voice only affects lectures generated from now on.</small></label>
+      <details class="adv"><summary>Advanced: local audio helper</summary>
+        <p class="hint">Optional. On a PC with the Python tools set up, <code>tools\start_audio_helper.bat</code> generates clips faster and with exact word timing. The app uses it automatically when it is running.</p>
+        <label class="field"><span>Engine</span><select class="input" id="audioEngine">${[['auto', 'Auto (helper if running, otherwise in-browser)'], ['browser', 'In-browser only'], ['helper', 'Local helper only']].map(([v, l]) => `<option value="${v}" ${(s.audioEngine || 'auto') === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+        <label class="field"><span>Helper address</span><input class="input" id="helperUrl" value="${esc(s.helperUrl || 'http://localhost:8788')}"></label>
+        <p class="hint" id="helper-status">Checking helper…</p>
+      </details>
+
       <h2>Appearance</h2>
       <div class="field"><span>App theme</span>
         <div class="theme-row">${Object.entries(THEMES).map(([k, t]) => `<button type="button" class="theme-chip ${s.theme === k ? 'active' : ''}" data-theme-pick="${k}">${swatchHTML(t)}<span>${t.name}</span></button>`).join('')}</div></div>
@@ -725,12 +765,15 @@
         : await modal({ title: `Delete account "${u.name}"?`, okText: 'Delete', body: '<p>Your stats will be removed. Your note sets stay on this device.</p>' });
       if (v) { Store.users.save(users().filter(x => x.id !== u.id)); Store.users.setCurrent(null); loginTarget = null; toast('Account deleted'); location.hash = '#login'; route(); }
     };
+    AudioGen.helperHealth(true).then(h => { const el = app.querySelector('#helper-status'); if (el) el.textContent = h ? `Helper is running (voice ${h.voice}, ${h.clips} clips on disk).` : 'Helper not running. That is fine: audio is made in the browser instead.'; });
     const key = app.querySelector('#key');
     app.querySelector('#show').onclick = e => { key.type = key.type === 'password' ? 'text' : 'password'; e.target.textContent = key.type === 'password' ? 'Show' : 'Hide'; };
     let theme = s.theme;
     app.querySelectorAll('[data-theme-pick]').forEach(b => b.onclick = () => { theme = b.dataset.themePick; applyTheme(theme); app.querySelectorAll('[data-theme-pick]').forEach(x => x.classList.toggle('active', x === b)); });
     app.querySelector('#save').onclick = () => {
-      Store.settings.update({ apiKey: key.value.trim(), model: app.querySelector('#model').value, theme });
+      Store.settings.update({ apiKey: key.value.trim(), model: app.querySelector('#model').value, theme,
+        autoLecture: app.querySelector('#autoLecture').checked, audioGpu: app.querySelector('#audioGpu').checked, kokoroVoice: app.querySelector('#kokoroVoice').value,
+        audioEngine: app.querySelector('#audioEngine').value, helperUrl: app.querySelector('#helperUrl').value.trim() || 'http://localhost:8788' });
       createState.theme = theme;
       toast('Settings saved');
     };

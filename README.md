@@ -51,35 +51,26 @@ If you unzip the download and see only the header bar, check that a `js` folder 
 - The default model is Claude Opus 5; Sonnet 5 is available in Settings for cheaper generation.
 - If your Anthropic account runs out of credits, the Create page shows an "out of credits" banner with a link to the billing page. Rate limits, overload and bad keys get plain-language messages too.
 
-## Lecture audio (Kokoro, local and free)
+## Lecture audio (Kokoro, free, nothing to install)
 
-Lecture audio is never synthesized when you press Play. It is pre-generated on your PC with the
-[Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M) model, stored as one Opus file per sentence, and
-committed with the site. Files are named by the sha256 of the exact sentence text, so re-running skips
-everything that already exists and any edited sentence gets fresh audio automatically.
+Lectures are read by [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M). Audio is generated **once per lecture**, never when you press Play:
 
-One-time setup (Python 3.12 environment inside `tools/.venv`, ignored by git):
+- When you create a set, the app writes the lecture with Claude and then generates its audio in the background. Opening a lecture that has no audio yet does the same. Progress is shown on the tile and on the Lecture page.
+- By default Kokoro runs **inside the browser** (kokoro-js on WebAssembly, or the graphics card if you enable it in Settings). The first time, the browser downloads the 92 MB voice model and caches it. Works on any device, no Python.
+- Clips are stored with the set in the browser's IndexedDB. Sentence timing is exact; word highlighting inside a sentence is estimated for browser-made clips.
+- The `audio/` folder holds clips published with the site (the sample lecture). Those have exact per-word timing and are used automatically when a sentence matches by sha256.
+
+### Optional: local helper (exact word timing, faster)
+
+If you have the Python tools set up on a PC, double-click `tools\start_audio_helper.bat` and leave the window open. The app detects it at `http://localhost:8788` and uses it instead of the in-browser engine; clips also land in `audio/` with the manifest, so `git add audio && git commit && git push` publishes them for every device.
+
+One-time setup for the tools (Python 3.12 environment inside `tools/.venv`, ignored by git):
 
 ```bash
 python -m pip install --user uv
-uv venv --python 3.12 tools/.venv
-uv pip install --python tools/.venv/Scripts/python.exe kokoro soundfile imageio-ffmpeg pip
+uv venv --python 3.12 tools\.venv
+uv pip install --python tools\.venv\Scripts\python.exe kokoro soundfile imageio-ffmpeg pip
+tools\.venv\Scripts\python tools\proof.py photosynthesis
 ```
 
-Prove it works on one word, then listen to the voices and pick one:
-
-```bash
-tools/.venv/Scripts/python tools/proof.py photosynthesis
-tools/.venv/Scripts/python tools/make_audio.py --samples
-```
-
-Generate audio for a lecture:
-
-1. Open the lecture in the app and press **For audio** (or Settings → Export all). This downloads a JSON file with the lecture text.
-2. `tools/.venv/Scripts/python tools/make_audio.py path/to/lecture-xxx.json --voice af_heart`
-3. `tools/.venv/Scripts/python tools/check_audio.py path/to/lecture-xxx.json` must print `OK` (it exits non-zero and lists every sentence that has no playable audio).
-4. Listen to a couple of the new clips in `audio/`, then `git add audio && git commit && git push`.
-
-The manifest (`audio/manifest.json`) records every sentence, its file, duration, voice and per-word timings; the app
-uses those timings to highlight words. Sentences without audio fall back to the browser's built-in voice or a silent
-timed scroll, and the Lecture page says so plainly.
+Batch tools: `tools/make_audio.py <export.json>` generates clips for exported lectures, `tools/check_audio.py <export.json>` fails loudly if any sentence has no audio, `tools/make_audio.py --samples` writes voice samples to listen to.
