@@ -24,6 +24,14 @@ const Lecture = (() => {
     const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
     return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
   }
+  // "Microsoft Ryan Online (Natural) - English (United Kingdom)" -> "Ryan (UK) · natural"
+  const REGION = { 'en-GB': 'UK', 'en-US': 'US', 'en-AU': 'Australia', 'en-CA': 'Canada', 'en-IN': 'India', 'en-IE': 'Ireland', 'en-NZ': 'New Zealand', 'en-ZA': 'South Africa' };
+  function friendlyVoice(v) {
+    const natural = /natural/i.test(v.name);
+    let name = v.name.replace(/^(Microsoft|Google|Apple)\s+/i, '').replace(/\s*\(Natural\)\s*/i, ' ').replace(/\s*Online\s*/i, ' ')
+      .replace(/\s+-\s+.*$/, '').replace(/\s+(English|Desktop).*$/i, '').trim() || v.name;
+    return `${name} (${REGION[v.lang] || v.lang})${natural ? ' · natural' : ''}`;
+  }
   let manifestPromise = null;
   function loadManifest() {
     if (!manifestPromise) manifestPromise = fetch(MANIFEST_URL, { cache: 'no-cache' }).then(r => r.ok ? r.json() : null).catch(() => null);
@@ -31,7 +39,7 @@ const Lecture = (() => {
   }
 
   function render(root, c, ctx) {
-    const st = { playing: false, idx: 0, rate: +(ctx.settings.lectureRate || 1), voiceURI: ctx.settings.lectureVoice || '', timers: [], utter: null, tick: null, finished: false, credited: false, token: 0 };
+    const st = { playing: false, idx: 0, rate: +(ctx.settings.lectureRate || 1), voice: ctx.settings.lectureVoice || 'kokoro', timers: [], utter: null, tick: null, finished: false, credited: false, token: 0 };
     let sentences = [], manifest = null, covered = 0;
     const audioEl = new Audio(); audioEl.preload = 'auto';
     const preloadEl = new Audio(); preloadEl.preload = 'auto';
@@ -77,7 +85,7 @@ const Lecture = (() => {
           <button class="btn primary" id="play" disabled>${I('play')} Play</button>
           <button class="btn ghost" id="restart" title="Restart">${I('skipBack')}</button>
           <label class="lec-sel">${I('timer')}<select class="input" id="rate">${SPEEDS.map(([v, l]) => `<option value="${v}" ${v === st.rate ? 'selected' : ''}>${l} (${v}x)</option>`).join('')}</select></label>
-          <label class="lec-sel" id="voice-wrap" hidden>${I('volume')}<select class="input" id="voice"><option value="">Browser voice</option></select></label>
+          <label class="lec-sel" id="voice-wrap">${I('volume')}<select class="input" id="voice"></select></label>
           <button class="btn ghost" id="export" title="Download this lecture's text so tools/make_audio.py can generate its audio">${I('download')} For audio</button>
           <button class="btn ghost" id="regen" title="Rewrite the lecture with Claude">${I('switch')} Rewrite</button>
         </div>
@@ -106,39 +114,54 @@ const Lecture = (() => {
       const missing = sentences.length - covered;
       const note = root.querySelector('#audio-note');
       const play = root.querySelector('#play'); if (play) play.disabled = false;
-      if (missing === 0) {
-        setStatus(`Audio ready · Kokoro ${esc((manifest && manifest.voice) || '')}`);
-      } else {
-        root.querySelector('#voice-wrap').hidden = !hasTTS;
+      if (!covered && st.voice === 'kokoro') st.voice = ctx.settings.lectureVoice && ctx.settings.lectureVoice !== 'kokoro' ? ctx.settings.lectureVoice : '';
+      fillVoices();
+      if (missing > 0 && !usingBrowserVoice()) {
         note.hidden = false;
-        note.innerHTML = `${I('volume')}<div><b>${covered ? `${missing} of ${sentences.length} sentences have no pre-generated audio.` : 'This lecture has no pre-generated audio yet.'}</b>
-          ${hasTTS ? 'Those sentences will use your browser\'s built-in voice for now.' : 'Your browser has no built-in voice, so those sentences will scroll silently.'}
-          To add real audio: press <b>For audio</b>, then run <code>tools/make_audio.py</code> on the downloaded file and push the <code>audio/</code> folder.</div>`;
-        setStatus(covered ? `Audio for ${covered}/${sentences.length} sentences` : (hasTTS ? 'Browser voice fallback' : 'Silent mode'));
+        note.innerHTML = `${I('volume')}<div><b>${covered ? `${missing} of ${sentences.length} sentences have no pre-generated audio.` : 'This lecture has no pre-generated Kokoro audio yet.'}</b>
+          ${hasTTS ? 'Those sentences will use a browser voice for now (pick one in the voice menu).' : 'Your browser has no built-in voice, so those sentences will scroll silently.'}
+          To add Kokoro audio: press <b>For audio</b>, then run <code>tools/make_audio.py</code> on the downloaded file and push the <code>audio/</code> folder.</div>`;
       }
+      updateStatus();
       preload(st.idx);
     }
-    function preload(i) { const s = sentences[i]; if (s && s.audio) { preloadEl.src = s.audio.file; } }
+    function preload(i) { const s = sentences[i]; if (s && s.audio && st.voice === 'kokoro') { preloadEl.src = s.audio.file; } }
+    function usingBrowserVoice() { return hasTTS && st.voice !== 'kokoro'; }
+    function browserVoice() { return speechSynthesis.getVoices().find(v => v.voiceURI === st.voice) || null; }
+    function updateStatus() {
+      if (st.voice === 'kokoro' && covered) setStatus(covered === sentences.length ? `Audio ready · Kokoro ${esc((manifest && manifest.voice) || '')}` : `Kokoro audio for ${covered}/${sentences.length} sentences`);
+      else if (usingBrowserVoice()) { const v = browserVoice(); setStatus('Voice: ' + esc(v ? friendlyVoice(v) : 'browser default')); }
+      else setStatus(hasTTS ? 'Browser voice' : 'Silent mode');
+    }
+    // Voice menu: the pre-generated Kokoro clips first, then the browser's own voices with friendly names.
+    function fillVoices() {
+      const sel = root.querySelector('#voice'); if (!sel) return;
+      const opts = [];
+      if (covered) opts.push(['kokoro', `Kokoro ${(manifest && manifest.voice) || ''} · pre-generated`]);
+      if (hasTTS) {
+        const all = speechSynthesis.getVoices();
+        const lang = (document.documentElement.lang || navigator.language || 'en').slice(0, 2).toLowerCase();
+        const mine = [...all].filter(v => v.lang.toLowerCase().startsWith(lang)), others = [...all].filter(v => !v.lang.toLowerCase().startsWith(lang));
+        const byQuality = (a, b) => (/natural/i.test(b.name) - /natural/i.test(a.name)) || friendlyVoice(a).localeCompare(friendlyVoice(b));
+        if (!all.length) opts.push(['', 'Browser voice']);
+        mine.sort(byQuality).concat(others.sort(byQuality)).forEach(v => opts.push([v.voiceURI, friendlyVoice(v)]));
+      }
+      if (!opts.length) opts.push(['', 'No voices available']);
+      if (!opts.some(o => o[0] === st.voice)) st.voice = opts[0][0];
+      sel.innerHTML = opts.map(([v, l]) => `<option value="${esc(v)}" ${v === st.voice ? 'selected' : ''}>${esc(l)}</option>`).join('');
+    }
 
     function wireControls() {
       root.querySelector('#play').onclick = () => st.playing ? pause() : play();
       root.querySelector('#restart').onclick = () => { stopAll(); st.idx = 0; st.finished = false; clearMarks(); mark(); if (st.playing) speak(); };
-      root.querySelector('#rate').onchange = e => { st.rate = +e.target.value; ctx.saveSettings({ lectureRate: st.rate }); audioEl.playbackRate = st.rate; if (st.playing && !sentences[st.idx]?.audio) { stopAll(); speak(); } };
-      const voiceSel = root.querySelector('#voice');
-      voiceSel.onchange = e => { st.voiceURI = e.target.value; ctx.saveSettings({ lectureVoice: st.voiceURI }); if (st.playing && !sentences[st.idx]?.audio) { stopAll(); speak(); } };
+      root.querySelector('#rate').onchange = e => { st.rate = +e.target.value; ctx.saveSettings({ lectureRate: st.rate }); audioEl.playbackRate = st.rate; if (st.playing && usingBrowserVoice()) { stopAll(); speak(); } };
+      root.querySelector('#voice').onchange = e => { st.voice = e.target.value; ctx.saveSettings({ lectureVoice: st.voice }); updateStatus(); if (st.playing) { stopAll(); speak(); } };
       root.querySelector('#export').onclick = () => ctx.exportForAudio(c);
       root.querySelector('#regen').onclick = async () => {
         if (!(await ctx.confirm('Rewrite this lecture?', 'Claude will write a fresh lecture from your notes. This uses a little API credit, and the new sentences will need audio generated again.'))) return;
         stopAll(); st.playing = false; c.lecture = null; generate();
       };
-      if (hasTTS) { fillVoices(); speechSynthesis.onvoiceschanged = fillVoices; }
-      function fillVoices() {
-        const all = speechSynthesis.getVoices();
-        if (!all.length) return;
-        const lang = (document.documentElement.lang || navigator.language || 'en').slice(0, 2).toLowerCase();
-        const sorted = [...all].sort((a, b) => (b.lang.toLowerCase().startsWith(lang) - a.lang.toLowerCase().startsWith(lang)) || (b.localService - a.localService) || a.name.localeCompare(b.name));
-        voiceSel.innerHTML = `<option value="">Browser voice</option>` + sorted.map(v => `<option value="${esc(v.voiceURI)}" ${v.voiceURI === st.voiceURI ? 'selected' : ''}>${esc(v.name)} (${esc(v.lang)})</option>`).join('');
-      }
+      if (hasTTS) speechSynthesis.onvoiceschanged = () => { fillVoices(); updateStatus(); };
     }
 
     function setStatus(t) { const el = root.querySelector('#lec-status'); if (el) el.innerHTML = t; }
@@ -179,9 +202,9 @@ const Lecture = (() => {
       if (st.idx >= sentences.length) return finish();
       mark();
       const s = sentences[st.idx];
-      if (s.audio) return playFile(s);
-      if (!hasTTS) return speakSilently(s);
-      speakBrowser(s);
+      if (st.voice === 'kokoro' && s.audio) return playFile(s);
+      if (hasTTS) return speakBrowser(s);
+      speakSilently(s);
     }
 
     // Pre-generated Kokoro clip: play the file and track words from the manifest timings.
@@ -208,7 +231,7 @@ const Lecture = (() => {
     function speakBrowser(s) {
       const u = new SpeechSynthesisUtterance(s.text);
       u.rate = st.rate;
-      const voice = speechSynthesis.getVoices().find(v => v.voiceURI === st.voiceURI); if (voice) u.voice = voice;
+      const voice = browserVoice(); if (voice) u.voice = voice;
       let sawBoundary = false;
       u.onboundary = e => {
         if (st.utter !== u || (e.name && e.name !== 'word')) return;
