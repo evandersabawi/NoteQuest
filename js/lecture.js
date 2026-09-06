@@ -139,12 +139,14 @@ const Lecture = (() => {
       const opts = [];
       if (covered) opts.push(['kokoro', `Kokoro ${(manifest && manifest.voice) || ''} · pre-generated`]);
       if (hasTTS) {
+        // Only US and UK English voices, natural ones first, at most eight. No other regions or languages.
         const all = speechSynthesis.getVoices();
-        const lang = (document.documentElement.lang || navigator.language || 'en').slice(0, 2).toLowerCase();
-        const mine = [...all].filter(v => v.lang.toLowerCase().startsWith(lang)), others = [...all].filter(v => !v.lang.toLowerCase().startsWith(lang));
+        const norm = v => (v.lang || '').replace('_', '-').toLowerCase();
+        let keep = all.filter(v => ['en-us', 'en-gb'].includes(norm(v)));
+        if (!keep.length) keep = all.filter(v => norm(v).startsWith('en'));
         const byQuality = (a, b) => (/natural/i.test(b.name) - /natural/i.test(a.name)) || friendlyVoice(a).localeCompare(friendlyVoice(b));
         if (!all.length) opts.push(['', 'Browser voice']);
-        mine.sort(byQuality).concat(others.sort(byQuality)).forEach(v => opts.push([v.voiceURI, friendlyVoice(v)]));
+        keep.sort(byQuality).slice(0, 8).forEach(v => opts.push([v.voiceURI, friendlyVoice(v)]));
       }
       if (!opts.length) opts.push(['', 'No voices available']);
       if (!opts.some(o => o[0] === st.voice)) st.voice = opts[0][0];
