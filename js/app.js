@@ -447,7 +447,8 @@
       try {
         const p = await Cloud.signIn({ login, password: pw, stay: app.querySelector('#stay').checked });
         toast('Syncing your sets…', 3000); await syncDown(p); await adoptLocalSets(p);
-        toast(`Welcome back, ${p.name}.`); location.hash = '#home'; route();
+        toast(p.recoveryQ ? `Welcome back, ${p.name}.` : `Welcome back, ${p.name}. Set a security question in Settings so you can reset your password.`, p.recoveryQ ? 2600 : 7000);
+        location.hash = '#home'; route();
       } catch (err) { btn.disabled = false; btn.innerHTML = `${I('lock')} Log in`; showErr(app, err.message); }
     };
     app.querySelector('#forgot').onclick = e => { e.preventDefault(); renderCloudReset(app.querySelector('#login').value.trim()); };

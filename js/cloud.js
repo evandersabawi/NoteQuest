@@ -101,7 +101,7 @@ const Cloud = (() => {
   async function resolveEmail(login) {
     if (isEmail(login)) return login.trim();
     const snap = await F.getDoc(D('usernames', lower(login)));
-    if (!snap.exists()) { const err = new Error('No account with that username.'); err.code = 'auth/user-not-found'; throw err; }
+    if (!snap.exists()) { const err = new Error('No account with that username. If you signed up with an email, log in with the email instead.'); err.code = 'auth/user-not-found'; throw err; }
     return snap.data().email;
   }
 
