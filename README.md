@@ -2,7 +2,7 @@
 
 A personal study app: photograph your notes, pick a game mode and a theme, and Claude turns them into flash cards, a monster-battle game, a matching game, a speed round, and a quiz. Everything runs in the browser; there is no server.
 
-Layout: a top bar with log in / sign up / log out, a sidebar with Home, Your creations, Create and a settings gear, and a Home screen showing your avatar, username, level/XP, stats and recent notes. Accounts come in two flavours. With Firebase configured (see below) they are **cloud accounts**: email + password, one account on every device, study sets synced. Without it they are **device-only accounts**: username, password (salted PBKDF2 hash), security question, and an export/import file to move an account to another device.
+Layout: a top bar with log in / sign up / log out, a sidebar with Home, Your creations, Create and a settings gear, and a Home screen showing your avatar, username, level/XP, stats and recent notes. Accounts come in two flavours. With Firebase configured (see below) they are **cloud accounts**: username + password (email optional), one account on every device, study sets synced. Without it they are **device-only accounts**: username, password (salted PBKDF2 hash), security question, and an export/import file to move an account to another device.
 
 ## Files
 
@@ -77,13 +77,13 @@ Batch tools: `tools/make_audio.py <export.json>` generates clips for exported le
 
 ## Cloud accounts (log in from any device)
 
-Without a server, accounts can only live in the browser that created them. To get one account that works everywhere, the app can use Firebase (Google's hosted login + database; the free tier is far more than one person needs). One-time setup, about five minutes:
+Cloud accounts run on Firebase (Google's hosted login + database, free tier). Accounts are **username + password**;
+email is optional and only used for reset links. A security question resets a forgotten password without email:
+the account password is stored sealed with a key derived from the answer (PBKDF2, 250k rounds, AES-GCM) in
+`recovery/{username}`, so the app can sign in and set a new password. Anyone who guesses the answer could do the same,
+so pick an answer that is not public. Settings lets you change username, email, password and the security question.
 
-1. Go to https://console.firebase.google.com and create a project (any name, Analytics can stay off).
-2. **Authentication** → Get started → Sign-in method → enable **Email/Password**.
-3. **Firestore Database** → Create database → production mode → any location. Then open the **Rules** tab, paste the contents of `firestore.rules` from this repo, and publish.
-4. **Project settings** (gear) → Your apps → add a **Web app** (</> icon, no hosting) → copy the `firebaseConfig` object.
-5. Paste it into `js/firebase-config.js` as `window.FIREBASE_CONFIG = { ... };`, commit and push.
-6. In Authentication → Settings → **Authorized domains**, make sure `evandersabawi.github.io` is listed (add it if not).
-
-From then on the log-in screen asks for email + password, "Forgot password" sends a reset email, and your sets follow you to every device (lecture audio is regenerated per device, since the clips are large). Accounts made before the switch are device-only; create a cloud account and use Import on the log-in screen of the old device's export if you want to carry sets over.
+One-time setup (already done for this repo): create a Firebase project, enable Email/Password sign-in, create a
+Firestore database and publish `firestore.rules`, add a Web app and paste its config into `js/firebase-config.js`,
+and add `evandersabawi.github.io` to Authentication → Settings → Authorized domains. Whenever `firestore.rules`
+changes, paste it into Firestore → Rules again and publish.
