@@ -423,90 +423,102 @@
     };
   }
 
-  // ---------- cloud accounts (Firebase) ----------
+  // ---------- cloud accounts (NoteQuest server on Railway) ----------
   function renderCloudLogin() {
     app.innerHTML = authShell(`
       <div class="auth-logo">${I('logo')}</div>
       <h1>Welcome back</h1>
-      <p class="hint">Log in with the email and password you signed up with. Your account works on every device.</p>
+      <p class="hint">Log in with your username and password. Your account works on every device.</p>
       <form class="auth-form" id="f">
-        <label class="field"><span>Email</span><input class="input" id="email" type="email" autocomplete="email"></label>
+        <label class="field"><span>Username</span><input class="input" id="uname" autocomplete="username" maxlength="24"></label>
         ${pwField('pw', 'Password')}
         <label class="check"><input type="checkbox" id="stay" checked> Stay signed in on this device</label>
         <div class="error" hidden></div>
         <button class="btn primary big wide" type="submit">${I('lock')} Log in</button>
       </form>
       <p class="hint"><a href="#" id="forgot">Forgot password?</a> · New here? <a href="#signup">Create an account</a></p>`);
-    wireEyes(app); app.querySelector('#email').focus();
+    wireEyes(app); app.querySelector('#uname').focus();
     app.querySelector('#f').onsubmit = async e => {
       e.preventDefault();
-      const email = app.querySelector('#email').value.trim(), pw = app.querySelector('#pw').value;
-      if (!email) return showErr(app, 'Enter your email.');
+      const username = app.querySelector('#uname').value.trim(), pw = app.querySelector('#pw').value;
+      if (!username) return showErr(app, 'Enter your username.');
       if (!pw) return showErr(app, 'Enter your password.');
       const btn = app.querySelector('button[type=submit]'); btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Logging in…';
       try {
-        const p = await Cloud.signIn({ email, password: pw, stay: app.querySelector('#stay').checked });
-        setStatusToast('Syncing your sets…'); await syncDown(p);
+        const p = await Cloud.signIn({ username, password: pw, stay: app.querySelector('#stay').checked });
+        await syncDown(p); await adoptLocalSets(p);
         toast(`Welcome back, ${p.name}.`); location.hash = '#home'; route();
       } catch (err) { btn.disabled = false; btn.innerHTML = `${I('lock')} Log in`; showErr(app, err.message); }
     };
-    app.querySelector('#forgot').onclick = e => { e.preventDefault(); renderCloudReset(app.querySelector('#email').value); };
+    app.querySelector('#forgot').onclick = e => { e.preventDefault(); renderCloudReset(app.querySelector('#uname').value.trim()); };
   }
-  function setStatusToast(t) { toast(t, 3000); }
 
   function renderCloudSignup() {
     let avatar = { kind: rnd(Icons.KINDS.length), color: COLORS[rnd(COLORS.length)] };
     app.innerHTML = authShell(`
       <div class="auth-logo">${I('logo')}</div>
       <h1>Create your account</h1>
-      <p class="hint">One account for all your devices. Your email is only used to log in and reset your password.</p>
+      <p class="hint">One account for all your devices. No email needed; your security question resets a forgotten password.</p>
       <button type="button" class="avatar-btn" id="pick"><span id="av">${Icons.avatar(avatar, 'xl')}</span><small>Tap to change avatar</small></button>
       <form class="auth-form" id="f">
-        <label class="field"><span>Email</span><input class="input" id="email" type="email" autocomplete="email"></label>
         <label class="field"><span>Username</span><input class="input" id="uname" placeholder="2–24 letters, numbers, . _ -" maxlength="24" autocomplete="username"></label>
         ${pwField('new', 'Password')}${strengthHTML('str')}
         ${pwField('conf', 'Confirm password')}
+        ${questionHTML('q')}
+        <label class="field"><span>Answer</span><input class="input" id="ans" autocomplete="off" maxlength="60"></label>
         <label class="check"><input type="checkbox" id="stay" checked> Stay signed in on this device</label>
         <div class="error" hidden></div>
         <button class="btn primary big wide" type="submit">Create account</button>
       </form>
       <p class="hint">Already have an account? <a href="#login">Log in</a></p>`);
     wireEyes(app); wireStrength(app.querySelector('#new'), app.querySelector('#str'));
-    app.querySelector('#email').focus();
+    app.querySelector('#uname').focus();
     app.querySelector('#pick').onclick = async () => { const a = await pickAvatar(avatar); if (a) { avatar = a; app.querySelector('#av').innerHTML = Icons.avatar(avatar, 'xl'); } };
     app.querySelector('#f').onsubmit = async e => {
       e.preventDefault();
-      const email = app.querySelector('#email').value.trim(), name = app.querySelector('#uname').value.trim();
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return showErr(app, 'Enter a valid email address.');
+      const name = app.querySelector('#uname').value.trim();
       if (!/^[\w.-]{2,24}$/.test(name)) return showErr(app, 'Username must be 2–24 characters: letters, numbers, dots, dashes or underscores.');
       const bad = checkPasswords(app, 'new', 'conf'); if (bad) return showErr(app, bad);
+      const ans = app.querySelector('#ans').value.trim(); if (ans.length < 2) return showErr(app, 'Answer your security question (at least 2 characters).');
       const btn = app.querySelector('button[type=submit]'); btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Creating…';
       try {
-        const p = await Cloud.signUp({ email, password: app.querySelector('#new').value, name, avatar, stay: app.querySelector('#stay').checked, newUser });
+        const p = await Cloud.signUp({ username: name, password: app.querySelector('#new').value, avatar, securityQ: app.querySelector('#q').value, securityA: ans, stay: app.querySelector('#stay').checked, newUser });
+        await adoptLocalSets(p);
         toast(`Welcome to NoteQuest, ${p.name}.`); location.hash = '#home'; route();
       } catch (err) { btn.disabled = false; btn.innerHTML = 'Create account'; showErr(app, err.message); }
     };
   }
 
   function renderCloudReset(prefill = '') {
-    app.innerHTML = authShell(`
-      <div class="auth-logo">${I('logo')}</div>
-      <h1>Reset password</h1>
-      <p class="hint">We will email you a link to choose a new password.</p>
-      <form class="auth-form" id="f">
-        <label class="field"><span>Email</span><input class="input" id="email" type="email" value="${esc(prefill)}" autocomplete="email"></label>
-        <div class="error" hidden></div>
-        <button class="btn primary big wide" type="submit">Send reset email</button>
-      </form>
-      <p class="hint"><a href="#" id="back">Back to log in</a></p>`);
-    app.querySelector('#email').focus();
-    app.querySelector('#f').onsubmit = async e => {
-      e.preventDefault();
-      const email = app.querySelector('#email').value.trim(); if (!email) return showErr(app, 'Enter your email.');
-      try { await Cloud.resetPassword(email); toast('Reset email sent. Check your inbox (and spam).', 6000); renderCloudLogin(); }
-      catch (err) { showErr(app, err.message); }
+    let question = null;
+    const draw = () => {
+      app.innerHTML = authShell(`
+        <div class="auth-logo">${I('logo')}</div>
+        <h1>Reset password</h1>
+        <p class="hint">${question ? 'Answer your security question to choose a new password.' : 'Enter your username to see your security question.'}</p>
+        <form class="auth-form" id="f">
+          <label class="field"><span>Username</span><input class="input" id="uname" value="${esc(prefill)}" autocomplete="username" ${question ? 'readonly' : ''}></label>
+          ${question ? `<label class="field"><span>${esc(question)}</span><input class="input" id="ans" autocomplete="off"></label>${pwField('new', 'New password')}${strengthHTML('str')}${pwField('conf', 'Confirm new password')}` : ''}
+          <div class="error" hidden></div>
+          <button class="btn primary big wide" type="submit">${question ? 'Reset password' : 'Continue'}</button>
+        </form>
+        <p class="hint"><a href="#" id="back">Back to log in</a></p>`);
+      wireEyes(app); if (question) wireStrength(app.querySelector('#new'), app.querySelector('#str'));
+      (question ? app.querySelector('#ans') : app.querySelector('#uname')).focus();
+      app.querySelector('#back').onclick = e => { e.preventDefault(); renderCloudLogin(); };
+      app.querySelector('#f').onsubmit = async e => {
+        e.preventDefault();
+        prefill = app.querySelector('#uname').value.trim();
+        if (!prefill) return showErr(app, 'Enter your username.');
+        try {
+          if (!question) { question = (await Cloud.getQuestion(prefill)).question; return draw(); }
+          const bad = checkPasswords(app, 'new', 'conf'); if (bad) return showErr(app, bad);
+          await Cloud.resetPassword(prefill, app.querySelector('#ans').value, app.querySelector('#new').value);
+          toast('Password reset. Log in with your new password.'); renderCloudLogin();
+        } catch (err) { showErr(app, err.message); }
+      };
     };
-    app.querySelector('#back').onclick = e => { e.preventDefault(); renderCloudLogin(); };
+    draw();
   }
   function cloudChangePasswordFlow() {
     return modal({
@@ -521,6 +533,30 @@
         };
       },
     });
+  }
+  function cloudQuestionFlow(u) {
+    return modal({
+      title: 'Security question', okText: 'Save',
+      body: `${questionHTML('q', u.recoveryQ)}<label class="field"><span>Answer</span><input class="input" id="ans" autocomplete="off" maxlength="60"></label>${pwField('cur', 'Confirm with your password')}<div class="error" hidden></div>`,
+      onOpen(m, close) {
+        wireEyes(m);
+        const ok = m.querySelector('#m-ok');
+        ok.onclick = async () => {
+          const ans = m.querySelector('#ans').value.trim(); if (ans.length < 2) return showErr(m, 'Enter an answer (at least 2 characters).');
+          try { await Cloud.setQuestion(m.querySelector('#q').value, ans, m.querySelector('#cur').value); u.recoveryQ = m.querySelector('#q').value; close(true); } catch (err) { showErr(m, err.message); }
+        };
+      },
+    });
+  }
+  // Sets made on this device under a device-only account (or before accounts existed) can move into the cloud account.
+  async function adoptLocalSets(p) {
+    const all = await Store.all();
+    const orphans = all.filter(c => c.owner !== p.id && !users().some(x => x.id === c.owner && x.cloud));
+    if (!orphans.length) return;
+    const v = await modal({ title: `Move ${orphans.length} set${orphans.length === 1 ? '' : 's'} into your account?`, okText: 'Move them', body: `<p>This device has study sets that are not in your cloud account yet (${esc(orphans.slice(0, 4).map(c => c.name).join(', '))}${orphans.length > 4 ? '…' : ''}). Move them so they follow you to other devices?</p>` });
+    if (!v) return;
+    for (const c of orphans) { c.owner = p.id; c.updatedAt = Date.now(); await Store.put(c); try { await Cloud.pushNow(c); } catch (e) { toast('Could not upload ' + c.name + ': ' + e.message); } }
+    toast(`Moved ${orphans.length} set${orphans.length === 1 ? '' : 's'} into your account.`);
   }
 
   // Local mode on a device that has no accounts: explain, offer import, or create.
@@ -644,7 +680,9 @@
     const name = v.trim();
     if (!/^[\w.-]{2,24}$/.test(name)) return toast('Username must be 2–24 characters: letters, numbers, dots, dashes or underscores.', 4000);
     if (users().some(x => x.id !== u.id && x.name.toLowerCase() === name.toLowerCase())) return toast('That username is already taken on this device.');
-    u.name = name; saveUser(u); renderChrome(); after(); toast('Username updated');
+    if (u.cloud) { try { u.name = name; await Cloud.saveProfile(u, true); } catch (err) { return toast(err.message, 4000); } }
+    else { u.name = name; saveUser(u); }
+    renderChrome(); after(); toast('Username updated');
   }
 
   // ---------- Your Creations ----------
@@ -861,14 +899,15 @@
       <div class="account-row">${avatarHTML(u, 'md')}
         <div><b>${esc(u.name)}</b>
           <small>Level ${level(u.stats.xp)} · ${u.stats.xp} XP · joined ${new Date(u.createdAt).toLocaleDateString()}${u.lastLogin ? ' · last login ' + relTime(u.lastLogin) : ''}</small>
-          <small>${u.cloud ? `${I('shield')} Cloud account · ${esc(u.email || '')} · works on every device` : `${I('lock')} Password ${u.passHash ? (u.passwordChangedAt ? 'changed ' + relTime(u.passwordChangedAt) : 'set') : 'not set'} · ${I('shield')} Security question ${u.recoveryQ ? 'set' : 'not set'} · this device only`}</small>
+          <small>${u.cloud ? `${I('shield')} Cloud account · works on every device · security question ${u.recoveryQ ? 'set' : 'not set'}` : `${I('lock')} Password ${u.passHash ? (u.passwordChangedAt ? 'changed ' + relTime(u.passwordChangedAt) : 'set') : 'not set'} · ${I('shield')} Security question ${u.recoveryQ ? 'set' : 'not set'} · this device only`}</small>
         </div>
       </div>
       <div class="row">
         <button class="btn ghost" id="acc-avatar">${I('user')} Change avatar</button>
         <button class="btn ghost" id="acc-name">${I('pencil')} Change username</button>
         <button class="btn ghost" id="acc-pass">${I('key')} Change password</button>
-        ${u.cloud ? '' : `<button class="btn ghost" id="acc-q">${I('shield')} Security question</button><button class="btn ghost" id="acc-export">${I('download')} Export account</button>`}
+        <button class="btn ghost" id="acc-q">${I('shield')} Security question</button>
+        ${u.cloud ? '' : `<button class="btn ghost" id="acc-export">${I('download')} Export account</button>`}
         <button class="btn ghost" id="acc-logout">${I('logout')} Log out</button>
         <button class="btn ghost danger" id="acc-delete">${I('trash')} Delete account</button>
       </div>
@@ -914,12 +953,15 @@
       if (u.cloud) { if (await cloudChangePasswordFlow()) toast('Password changed'); return; }
       if (!u.passHash) return toast('Log out and back in to set a password.'); if (await changePasswordFlow(u)) { toast('Password changed'); renderSettings(); }
     };
-    const accQ = app.querySelector('#acc-q'); if (accQ) accQ.onclick = async () => { if (!u.passHash) return toast('Log out and back in to set a password first.'); if (await securityQuestionFlow(u)) { toast('Security question saved'); renderSettings(); } };
+    const accQ = app.querySelector('#acc-q'); if (accQ) accQ.onclick = async () => {
+      if (u.cloud) { if (await cloudQuestionFlow(u)) { toast('Security question saved'); renderSettings(); } return; }
+      if (!u.passHash) return toast('Log out and back in to set a password first.'); if (await securityQuestionFlow(u)) { toast('Security question saved'); renderSettings(); }
+    };
     const accX = app.querySelector('#acc-export'); if (accX) accX.onclick = () => exportAccount(u);
     app.querySelector('#acc-logout').onclick = () => logout(false);
     app.querySelector('#acc-delete').onclick = async () => {
       if (u.cloud) {
-        const ok = await modal({ title: `Delete account "${u.name}"?`, okText: 'Delete', body: `<p>Your profile and study sets will be removed from the cloud. This cannot be undone.</p>${pwField('cur', 'Enter your password to confirm')}<div class="error" hidden></div>`,
+        const ok = await modal({ title: `Delete account "${u.name}"?`, okText: 'Delete', body: `<p>Your profile and study sets will be removed from your account on every device. This cannot be undone.</p>${pwField('cur', 'Enter your password to confirm')}<div class="error" hidden></div>`,
           onOpen(m, close) { wireEyes(m); m.querySelector('#m-ok').onclick = async () => { try { await Cloud.deleteAccount(m.querySelector('#cur').value); close(true); } catch (err) { showErr(m, err.message); } }; } });
         if (ok) { Store.users.setCurrent(null); toast('Account deleted'); location.hash = '#login'; route(); }
         return;
