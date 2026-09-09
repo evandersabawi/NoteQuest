@@ -2,5 +2,3 @@
 *.zip
 tools/.venv/
 tools/_work/
-server/.venv/
-server/*.sqlite3
