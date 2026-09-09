@@ -436,8 +436,11 @@
         <div class="error" hidden></div>
         <button class="btn primary big wide" type="submit">${I('lock')} Log in</button>
       </form>
-      <p class="hint"><a href="#" id="forgot">Forgot password?</a> · New here? <a href="#signup">Create an account</a></p>`);
+      <p class="hint"><a href="#" id="forgot">Forgot password?</a> · New here? <a href="#signup">Create an account</a></p>
+      ${localPending().length ? `<div class="migrate-box"><b>Accounts on this device from before cloud accounts existed</b><p class="hint">They only exist in this browser. Move one to the cloud to keep its name, stats and sets and use it anywhere.</p>
+        <div class="account-list">${localPending().map(u => `<button class="account" data-mig="${u.id}">${avatarHTML(u, 'md')}<span><b>${esc(u.name)}</b><small>Level ${level(u.stats.xp)} · ${u.stats.xp} XP · device only</small></span>${I('chevronRight', 'chev')}</button>`).join('')}</div></div>` : ''}`);
     wireEyes(app); app.querySelector('#login').focus();
+    app.querySelectorAll('[data-mig]').forEach(b => b.onclick = () => renderMigrateLocal(users().find(u => u.id === b.dataset.mig)));
     app.querySelector('#f').onsubmit = async e => {
       e.preventDefault();
       const login = app.querySelector('#login').value.trim(), pw = app.querySelector('#pw').value;
@@ -526,6 +529,53 @@
       };
     };
     draw();
+  }
+
+  // Device-only accounts that have not been moved to the cloud yet.
+  function localPending() { return users().filter(u => !u.cloud && !u.migratedTo); }
+
+  // Move a device-only account into the cloud: same username, avatar, stats and sets.
+  function renderMigrateLocal(lu) {
+    if (!lu) return renderCloudLogin();
+    app.innerHTML = authShell(`
+      ${avatarHTML(lu, 'xl')}
+      <h1>Move ${esc(lu.name)} to the cloud</h1>
+      <p class="hint">Confirm this account's password, then choose the details for the cloud account. Your level, stats and study sets come along.</p>
+      <form class="auth-form" id="f">
+        ${pwField('pw', `Current password for ${esc(lu.name)}`)}
+        <label class="field"><span>Username</span><input class="input" id="uname" value="${esc(lu.name)}" maxlength="24" autocomplete="username"></label>
+        ${pwField('new', 'Cloud password')}${strengthHTML('str')}
+        ${pwField('conf', 'Confirm cloud password')}
+        ${questionHTML('q', lu.recoveryQ)}
+        <label class="field"><span>Answer</span><input class="input" id="ans" autocomplete="off" maxlength="60"></label>
+        <label class="field"><span>Email <small>(optional, for reset links)</small></span><input class="input" id="email" type="email" autocomplete="email"></label>
+        <label class="check"><input type="checkbox" id="stay" checked> Stay signed in on this device</label>
+        <div class="error" hidden></div>
+        <button class="btn primary big wide" type="submit">Move to cloud</button>
+      </form>
+      <p class="hint"><a href="#" id="back">Back to log in</a></p>`);
+    wireEyes(app); wireStrength(app.querySelector('#new'), app.querySelector('#str'));
+    app.querySelector('#pw').focus();
+    app.querySelector('#back').onclick = e => { e.preventDefault(); renderCloudLogin(); };
+    app.querySelector('#f').onsubmit = async e => {
+      e.preventDefault();
+      if (lu.passHash && !(await Auth.verify(lu, app.querySelector('#pw').value))) return showErr(app, `Wrong password for ${lu.name}.`);
+      const name = app.querySelector('#uname').value.trim(), email = app.querySelector('#email').value.trim();
+      if (!/^[\w.-]{2,24}$/.test(name)) return showErr(app, 'Username must be 2–24 characters: letters, numbers, dots, dashes or underscores.');
+      if (email && !Cloud.isEmail(email)) return showErr(app, 'That email address does not look right (or leave it empty).');
+      const bad = checkPasswords(app, 'new', 'conf'); if (bad) return showErr(app, bad);
+      const ans = app.querySelector('#ans').value.trim(); if (ans.length < 2) return showErr(app, 'Answer your security question (at least 2 characters).');
+      const btn = app.querySelector('button[type=submit]'); btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Moving…';
+      try {
+        const p = await Cloud.signUp({ username: name, email, password: app.querySelector('#new').value, avatar: lu.avatar, securityQ: app.querySelector('#q').value, securityA: ans, stay: app.querySelector('#stay').checked, newUser });
+        p.stats = Object.assign({}, p.stats, lu.stats || {}); p.activeDays = (lu.activeDays || []).slice(); p.createdAt = lu.createdAt || p.createdAt;
+        await Cloud.saveProfile(p, true);
+        for (const c of await Store.all()) if (c.owner === lu.id) { c.owner = p.id; c.updatedAt = Date.now(); await Store.put(c); try { await Cloud.pushNow(c); } catch (err) { toast('Could not upload ' + c.name + ': ' + err.message); } }
+        lu.migratedTo = p.id; saveUser(lu);
+        await adoptLocalSets(p);
+        toast(`${p.name} is now a cloud account. Log in anywhere with it.`, 5000); location.hash = '#home'; route();
+      } catch (err) { btn.disabled = false; btn.innerHTML = 'Move to cloud'; showErr(app, err.message); }
+    };
   }
 
   // ---------- cloud account settings ----------
