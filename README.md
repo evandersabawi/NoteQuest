@@ -2,7 +2,7 @@
 
 A personal study app: photograph your notes, pick a game mode and a theme, and Claude turns them into flash cards, a monster-battle game, a matching game, a speed round, and a quiz. Everything runs in the browser; there is no server.
 
-Layout: a top bar with log in / sign up / log out, a sidebar with Home, Your creations, Create and a settings gear, and a Home screen showing your avatar, username, level/XP, stats and recent notes. Accounts are local profiles stored in the browser: username, a drawn creature avatar, a password (stored only as a salted PBKDF2 hash) and a security question for password resets. Five wrong passwords lock the account for 30 seconds. No email, no server.
+Layout: a top bar with log in / sign up / log out, a sidebar with Home, Your creations, Create and a settings gear, and a Home screen showing your avatar, username, level/XP, stats and recent notes. Accounts come in two flavours. With Firebase configured (see below) they are **cloud accounts**: email + password, one account on every device, study sets synced. Without it they are **device-only accounts**: username, password (salted PBKDF2 hash), security question, and an export/import file to move an account to another device.
 
 ## Files
 
@@ -74,3 +74,16 @@ tools\.venv\Scripts\python tools\proof.py photosynthesis
 ```
 
 Batch tools: `tools/make_audio.py <export.json>` generates clips for exported lectures, `tools/check_audio.py <export.json>` fails loudly if any sentence has no audio, `tools/make_audio.py --samples` writes voice samples to listen to.
+
+## Cloud accounts (log in from any device)
+
+Without a server, accounts can only live in the browser that created them. To get one account that works everywhere, the app can use Firebase (Google's hosted login + database; the free tier is far more than one person needs). One-time setup, about five minutes:
+
+1. Go to https://console.firebase.google.com and create a project (any name, Analytics can stay off).
+2. **Authentication** → Get started → Sign-in method → enable **Email/Password**.
+3. **Firestore Database** → Create database → production mode → any location. Then open the **Rules** tab, paste the contents of `firestore.rules` from this repo, and publish.
+4. **Project settings** (gear) → Your apps → add a **Web app** (</> icon, no hosting) → copy the `firebaseConfig` object.
+5. Paste it into `js/firebase-config.js` as `window.FIREBASE_CONFIG = { ... };`, commit and push.
+6. In Authentication → Settings → **Authorized domains**, make sure `evandersabawi.github.io` is listed (add it if not).
+
+From then on the log-in screen asks for email + password, "Forgot password" sends a reset email, and your sets follow you to every device (lecture audio is regenerated per device, since the clips are large). Accounts made before the switch are device-only; create a cloud account and use Import on the log-in screen of the old device's export if you want to carry sets over.

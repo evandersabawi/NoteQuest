@@ -32,8 +32,29 @@
 
   // ---------- users / accounts (stored on this device only) ----------
   const users = () => Store.users.list();
-  function currentUser() { const id = Store.users.currentId(); return users().find(u => u.id === id) || null; }
-  function saveUser(u) { const list = users(); const i = list.findIndex(x => x.id === u.id); if (i >= 0) list[i] = u; else list.push(u); Store.users.save(list); }
+  function currentUser() {
+    if (Cloud.enabled()) return Cloud.profile();
+    const id = Store.users.currentId(); return users().find(u => u.id === id) || null;
+  }
+  function saveUser(u) {
+    if (u && u.cloud) { Cloud.saveProfile(u); return; }
+    const list = users(); const i = list.findIndex(x => x.id === u.id); if (i >= 0) list[i] = u; else list.push(u); Store.users.save(list);
+  }
+  // Creations: local store first, then the cloud copy (without audio blobs) when signed in to a cloud account.
+  async function putC(c) { c.updatedAt = Date.now(); await Store.put(c); const me = Cloud.enabled() && Cloud.profile(); if (me && c.owner === me.id) Cloud.pushCreation(c); }
+  async function delC(id) { await Store.del(id); if (Cloud.enabled() && Cloud.profile()) Cloud.deleteCreation(id); }
+  // After a cloud login: merge the account's sets from the cloud into this device, and push any local ones it lacks.
+  async function syncDown(p) {
+    try {
+      const remote = await Cloud.pullCreations();
+      const ids = new Set(remote.map(r => r.id));
+      for (const r of remote) {
+        const local = await Store.get(r.id);
+        if (!local || (r.updatedAt || 0) > (local.updatedAt || 0)) await Store.put(Object.assign({}, r, { audioClips: (local && local.audioClips) || {} }));
+      }
+      for (const c of await Store.all()) if (c.owner === p.id && !ids.has(c.id)) Cloud.pushCreation(c);
+    } catch (e) { toast('Could not sync your sets: ' + (e.message || e), 5000); }
+  }
   function newUser(name, avatar) {
     return { id: uid(), name, avatar, createdAt: Date.now(), activeDays: [],
       stats: { quizzes: 0, quizPctTotal: 0, quizBest: 0, cardsStudied: 0, flashRuns: 0, monstersCaught: 0, notemonWins: 0, matchGames: 0, matchBest: null, blitzBest: 0, blitzGames: 0, xp: 0 } };
@@ -62,7 +83,7 @@
       case 'quiz': c.stats.quizBest = Math.max(c.stats.quizBest || 0, r.pct); s.quizzes++; s.quizPctTotal += r.pct; s.quizBest = Math.max(s.quizBest, r.pct); s.xp += r.score * 10; break;
       case 'lecture': c.stats.lectures = (c.stats.lectures || 0) + 1; s.lectures = (s.lectures || 0) + 1; s.xp += 20; break;
     }
-    await Store.put(c); saveUser(u); renderChrome();
+    await putC(c); saveUser(u); renderChrome();
   }
 
   // ---------- helpers ----------
@@ -157,6 +178,7 @@
       const v = await modal({ title: `Log out of ${u.name}?`, okText: 'Log out', body: '<p>Your progress is saved on this device. You will need your password to log back in.</p>' });
       if (!v) return;
     }
+    if (Cloud.enabled()) await Cloud.signOut();
     Store.users.setCurrent(null);
     loginTarget = null;
     toast(switching ? 'Choose an account to continue' : `Logged out. See you soon, ${u.name}.`);
@@ -261,8 +283,10 @@
   // ---------- auth screens ----------
   function renderAuth(kind) {
     setNav('');
+    if (Cloud.enabled()) return kind === 'signup' ? renderCloudSignup() : kind === 'reset' ? renderCloudReset() : renderCloudLogin();
     const list = users();
-    if (kind === 'signup' || !list.length) return renderSignup(list);
+    if (kind === 'signup') return renderSignup(list);
+    if (!list.length) return renderLocalEmpty();
     const target = list.find(u => u.id === loginTarget);
     if (kind === 'reset' && target) return renderReset(target);
     if (target) return target.passHash ? renderPassword(target) : renderFinishSetup(target);
@@ -399,6 +423,135 @@
     };
   }
 
+  // ---------- cloud accounts (Firebase) ----------
+  function renderCloudLogin() {
+    app.innerHTML = authShell(`
+      <div class="auth-logo">${I('logo')}</div>
+      <h1>Welcome back</h1>
+      <p class="hint">Log in with the email and password you signed up with. Your account works on every device.</p>
+      <form class="auth-form" id="f">
+        <label class="field"><span>Email</span><input class="input" id="email" type="email" autocomplete="email"></label>
+        ${pwField('pw', 'Password')}
+        <label class="check"><input type="checkbox" id="stay" checked> Stay signed in on this device</label>
+        <div class="error" hidden></div>
+        <button class="btn primary big wide" type="submit">${I('lock')} Log in</button>
+      </form>
+      <p class="hint"><a href="#" id="forgot">Forgot password?</a> · New here? <a href="#signup">Create an account</a></p>`);
+    wireEyes(app); app.querySelector('#email').focus();
+    app.querySelector('#f').onsubmit = async e => {
+      e.preventDefault();
+      const email = app.querySelector('#email').value.trim(), pw = app.querySelector('#pw').value;
+      if (!email) return showErr(app, 'Enter your email.');
+      if (!pw) return showErr(app, 'Enter your password.');
+      const btn = app.querySelector('button[type=submit]'); btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Logging in…';
+      try {
+        const p = await Cloud.signIn({ email, password: pw, stay: app.querySelector('#stay').checked });
+        setStatusToast('Syncing your sets…'); await syncDown(p);
+        toast(`Welcome back, ${p.name}.`); location.hash = '#home'; route();
+      } catch (err) { btn.disabled = false; btn.innerHTML = `${I('lock')} Log in`; showErr(app, err.message); }
+    };
+    app.querySelector('#forgot').onclick = e => { e.preventDefault(); renderCloudReset(app.querySelector('#email').value); };
+  }
+  function setStatusToast(t) { toast(t, 3000); }
+
+  function renderCloudSignup() {
+    let avatar = { kind: rnd(Icons.KINDS.length), color: COLORS[rnd(COLORS.length)] };
+    app.innerHTML = authShell(`
+      <div class="auth-logo">${I('logo')}</div>
+      <h1>Create your account</h1>
+      <p class="hint">One account for all your devices. Your email is only used to log in and reset your password.</p>
+      <button type="button" class="avatar-btn" id="pick"><span id="av">${Icons.avatar(avatar, 'xl')}</span><small>Tap to change avatar</small></button>
+      <form class="auth-form" id="f">
+        <label class="field"><span>Email</span><input class="input" id="email" type="email" autocomplete="email"></label>
+        <label class="field"><span>Username</span><input class="input" id="uname" placeholder="2–24 letters, numbers, . _ -" maxlength="24" autocomplete="username"></label>
+        ${pwField('new', 'Password')}${strengthHTML('str')}
+        ${pwField('conf', 'Confirm password')}
+        <label class="check"><input type="checkbox" id="stay" checked> Stay signed in on this device</label>
+        <div class="error" hidden></div>
+        <button class="btn primary big wide" type="submit">Create account</button>
+      </form>
+      <p class="hint">Already have an account? <a href="#login">Log in</a></p>`);
+    wireEyes(app); wireStrength(app.querySelector('#new'), app.querySelector('#str'));
+    app.querySelector('#email').focus();
+    app.querySelector('#pick').onclick = async () => { const a = await pickAvatar(avatar); if (a) { avatar = a; app.querySelector('#av').innerHTML = Icons.avatar(avatar, 'xl'); } };
+    app.querySelector('#f').onsubmit = async e => {
+      e.preventDefault();
+      const email = app.querySelector('#email').value.trim(), name = app.querySelector('#uname').value.trim();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return showErr(app, 'Enter a valid email address.');
+      if (!/^[\w.-]{2,24}$/.test(name)) return showErr(app, 'Username must be 2–24 characters: letters, numbers, dots, dashes or underscores.');
+      const bad = checkPasswords(app, 'new', 'conf'); if (bad) return showErr(app, bad);
+      const btn = app.querySelector('button[type=submit]'); btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Creating…';
+      try {
+        const p = await Cloud.signUp({ email, password: app.querySelector('#new').value, name, avatar, stay: app.querySelector('#stay').checked, newUser });
+        toast(`Welcome to NoteQuest, ${p.name}.`); location.hash = '#home'; route();
+      } catch (err) { btn.disabled = false; btn.innerHTML = 'Create account'; showErr(app, err.message); }
+    };
+  }
+
+  function renderCloudReset(prefill = '') {
+    app.innerHTML = authShell(`
+      <div class="auth-logo">${I('logo')}</div>
+      <h1>Reset password</h1>
+      <p class="hint">We will email you a link to choose a new password.</p>
+      <form class="auth-form" id="f">
+        <label class="field"><span>Email</span><input class="input" id="email" type="email" value="${esc(prefill)}" autocomplete="email"></label>
+        <div class="error" hidden></div>
+        <button class="btn primary big wide" type="submit">Send reset email</button>
+      </form>
+      <p class="hint"><a href="#" id="back">Back to log in</a></p>`);
+    app.querySelector('#email').focus();
+    app.querySelector('#f').onsubmit = async e => {
+      e.preventDefault();
+      const email = app.querySelector('#email').value.trim(); if (!email) return showErr(app, 'Enter your email.');
+      try { await Cloud.resetPassword(email); toast('Reset email sent. Check your inbox (and spam).', 6000); renderCloudLogin(); }
+      catch (err) { showErr(app, err.message); }
+    };
+    app.querySelector('#back').onclick = e => { e.preventDefault(); renderCloudLogin(); };
+  }
+  function cloudChangePasswordFlow() {
+    return modal({
+      title: 'Change password', okText: 'Save',
+      body: `${pwField('cur', 'Current password')}${pwField('new', 'New password')}${strengthHTML('str')}${pwField('conf', 'Confirm new password')}<div class="error" hidden></div>`,
+      onOpen(m, close) {
+        wireEyes(m); wireStrength(m.querySelector('#new'), m.querySelector('#str'));
+        const ok = m.querySelector('#m-ok');
+        ok.onclick = async () => {
+          const bad = checkPasswords(m, 'new', 'conf'); if (bad) return showErr(m, bad);
+          try { await Cloud.changePassword(m.querySelector('#cur').value, m.querySelector('#new').value); close(true); } catch (err) { showErr(m, err.message); }
+        };
+      },
+    });
+  }
+
+  // Local mode on a device that has no accounts: explain, offer import, or create.
+  function renderLocalEmpty() {
+    app.innerHTML = authShell(`
+      <div class="auth-logo">${I('logo')}</div>
+      <h1>No accounts on this device yet</h1>
+      <p class="hint">Accounts are stored on the device where they were made. Bring yours over from the other device, or create a new one here.</p>
+      <label class="btn secondary big wide">${I('upload')} Import my account file <input type="file" id="imp" accept="application/json" hidden></label>
+      <p class="hint">On your other device: Settings → Account → <b>Export account</b>. The file holds your profile, password (hashed) and study sets.</p>
+      <a class="btn primary big wide" href="#signup">Create a new account</a>`);
+    app.querySelector('#imp').onchange = async e => {
+      try {
+        const data = JSON.parse(await e.target.files[0].text());
+        const cur = users(); let nu = 0, nc = 0;
+        for (const iu of (data.users || [])) if (iu && iu.id && !cur.some(x => x.id === iu.id)) { cur.push(iu); nu++; }
+        Store.users.save(cur);
+        for (const c of (data.creations || [])) if (c && c.id && Array.isArray(c.cards)) { await Store.put(c); nc++; }
+        toast(`Imported ${nu} account${nu === 1 ? '' : 's'} and ${nc} set${nc === 1 ? '' : 's'}. Log in with your password.`, 5000);
+        loginTarget = null; renderAuth('login');
+      } catch (err) { toast('Import failed: ' + err.message); }
+    };
+  }
+  function exportAccount(u) {
+    Store.all().then(all => {
+      const blob = new Blob([JSON.stringify({ notequest: 2, users: [u], creations: mine(all, u).map(c => { const { audioClips, ...rest } = c; return rest; }) })], { type: 'application/json' });
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `notequest-account-${u.name}.json`; a.click();
+      toast('Account file downloaded. Import it on the other device from the log-in screen.', 5000);
+    });
+  }
+
   // ---------- account management (used from Settings) ----------
   function changePasswordFlow(u) {
     return modal({
@@ -482,7 +635,7 @@
     </section>`;
     app.querySelector('#avatarBtn').onclick = async () => { const a = await pickAvatar(u.avatar); if (a) { u.avatar = a; saveUser(u); renderChrome(); renderHome(); } };
     app.querySelector('#editName').onclick = () => renameFlow(u, renderHome);
-    const smp = app.querySelector('#sample'); if (smp) smp.onclick = async () => { await Store.put(await sampleCreation(u)); toast('Sample added'); renderHome(); };
+    const smp = app.querySelector('#sample'); if (smp) smp.onclick = async () => { await putC(await sampleCreation(u)); toast('Sample added'); renderHome(); };
     wireTiles();
   }
   async function renameFlow(u, after) {
@@ -507,7 +660,7 @@
         <div class="row center"><a class="btn primary big" href="#create">${I('plus')} Create your first set</a><button class="btn ghost" id="sample">Load a sample</button></div>
         ${s.apiKey ? '' : '<p class="hint">You will need a Claude API key. Add it in <a href="#settings">Settings</a>.</p>'}
       </section>`;
-      app.querySelector('#sample').onclick = async () => { await Store.put(await sampleCreation(u)); toast('Sample added'); renderCreations(); };
+      app.querySelector('#sample').onclick = async () => { await putC(await sampleCreation(u)); toast('Sample added'); renderCreations(); };
       return;
     }
     app.innerHTML = `<section>
@@ -561,18 +714,18 @@
     const refresh = () => route();
     if (action === 'mode') {
       const v = await modal({ title: 'Game mode', current: c.mode, options: Object.entries(MODES).map(([k, m]) => ({ value: k, label: m.name, desc: m.desc, icon: I(m.icon) })) });
-      if (v) { c.mode = v; await Store.put(c); refresh(); }
+      if (v) { c.mode = v; await putC(c); refresh(); }
     } else if (action === 'theme') {
       const v = await modal({ title: 'Theme', current: c.theme, options: Object.entries(THEMES).map(([k, t]) => ({ value: k, label: t.name, icon: swatchHTML(t) })) });
-      if (v) { c.theme = v; await Store.put(c); refresh(); }
+      if (v) { c.theme = v; await putC(c); refresh(); }
     } else if (action === 'rename') {
       const v = await modal({ title: 'Rename', okText: 'Save', body: `<input class="input" value="${esc(c.name)}" maxlength="80">` });
-      if (v && v.trim()) { c.name = v.trim(); await Store.put(c); refresh(); }
+      if (v && v.trim()) { c.name = v.trim(); await putC(c); refresh(); }
     } else if (action === 'view') {
       await modal({ title: c.name, okText: 'Close', body: `<div class="cardlist"><p class="summary">${esc(c.summary || '')}</p>${c.cards.map(k => `<div class="cardrow"><b>${esc(k.front)}</b><span>${esc(k.back)}</span></div>`).join('')}</div>` });
     } else if (action === 'delete') {
       const v = await modal({ title: `Delete "${c.name}"?`, okText: 'Delete', body: '<p>This cannot be undone.</p>' });
-      if (v) { await Store.del(id); toast('Deleted'); refresh(); }
+      if (v) { await delC(id); toast('Deleted'); refresh(); }
     }
   }
 
@@ -650,7 +803,7 @@
       st.status = 'Reading your notes with Claude… (this can take a minute)'; renderCreate();
       const r = await API.generate({ images, name: st.name.trim(), mode: st.mode, apiKey: s.apiKey, model: s.model, onStatus: m => { st.status = m; renderCreate(); } });
       const c = sanitize(r, { name: st.name.trim(), mode: st.mode, theme: st.theme, cover, owner: u.id });
-      await Store.put(c);
+      await putC(c);
       u.stats.xp += 25; saveUser(u);
       st.files = []; st.name = ''; st.busy = false; st.status = '';
       toast(`Created "${c.name}" · ${c.cards.length} cards, ${c.questions.length} questions`, 4000);
@@ -689,9 +842,9 @@
         if (!sections.length) throw new Error('empty lecture');
         c.lecture = { title: r.title || c.name, sections, createdAt: Date.now(), model: r._model };
         c.audioClips = {};
-        await Store.put(c);
+        await putC(c);
       }
-      await AudioGen.ensure(c, { save: cc => Store.put(cc), onProgress: pr => { prep.set(c.id, { text: pr.text }); } });
+      await AudioGen.ensure(c, { save: cc => putC(cc), onProgress: pr => { prep.set(c.id, { text: pr.text }); } });
       toast(`Lecture and audio ready for "${c.name}"`, 4000);
     } catch (e) {
       toast(`Lecture prep for "${c.name}" stopped: ${e.message || e}. Open Lecture to retry.`, 6000);
@@ -708,14 +861,14 @@
       <div class="account-row">${avatarHTML(u, 'md')}
         <div><b>${esc(u.name)}</b>
           <small>Level ${level(u.stats.xp)} · ${u.stats.xp} XP · joined ${new Date(u.createdAt).toLocaleDateString()}${u.lastLogin ? ' · last login ' + relTime(u.lastLogin) : ''}</small>
-          <small>${I('lock')} Password ${u.passHash ? (u.passwordChangedAt ? 'changed ' + relTime(u.passwordChangedAt) : 'set') : 'not set'} · ${I('shield')} Security question ${u.recoveryQ ? 'set' : 'not set'}</small>
+          <small>${u.cloud ? `${I('shield')} Cloud account · ${esc(u.email || '')} · works on every device` : `${I('lock')} Password ${u.passHash ? (u.passwordChangedAt ? 'changed ' + relTime(u.passwordChangedAt) : 'set') : 'not set'} · ${I('shield')} Security question ${u.recoveryQ ? 'set' : 'not set'} · this device only`}</small>
         </div>
       </div>
       <div class="row">
         <button class="btn ghost" id="acc-avatar">${I('user')} Change avatar</button>
         <button class="btn ghost" id="acc-name">${I('pencil')} Change username</button>
         <button class="btn ghost" id="acc-pass">${I('key')} Change password</button>
-        <button class="btn ghost" id="acc-q">${I('shield')} Security question</button>
+        ${u.cloud ? '' : `<button class="btn ghost" id="acc-q">${I('shield')} Security question</button><button class="btn ghost" id="acc-export">${I('download')} Export account</button>`}
         <button class="btn ghost" id="acc-logout">${I('logout')} Log out</button>
         <button class="btn ghost danger" id="acc-delete">${I('trash')} Delete account</button>
       </div>
@@ -757,10 +910,20 @@
     </section>`;
     app.querySelector('#acc-avatar').onclick = async () => { const a = await pickAvatar(u.avatar); if (a) { u.avatar = a; saveUser(u); renderChrome(); renderSettings(); } };
     app.querySelector('#acc-name').onclick = () => renameFlow(u, renderSettings);
-    app.querySelector('#acc-pass').onclick = async () => { if (!u.passHash) return toast('Log out and back in to set a password.'); if (await changePasswordFlow(u)) { toast('Password changed'); renderSettings(); } };
-    app.querySelector('#acc-q').onclick = async () => { if (!u.passHash) return toast('Log out and back in to set a password first.'); if (await securityQuestionFlow(u)) { toast('Security question saved'); renderSettings(); } };
+    app.querySelector('#acc-pass').onclick = async () => {
+      if (u.cloud) { if (await cloudChangePasswordFlow()) toast('Password changed'); return; }
+      if (!u.passHash) return toast('Log out and back in to set a password.'); if (await changePasswordFlow(u)) { toast('Password changed'); renderSettings(); }
+    };
+    const accQ = app.querySelector('#acc-q'); if (accQ) accQ.onclick = async () => { if (!u.passHash) return toast('Log out and back in to set a password first.'); if (await securityQuestionFlow(u)) { toast('Security question saved'); renderSettings(); } };
+    const accX = app.querySelector('#acc-export'); if (accX) accX.onclick = () => exportAccount(u);
     app.querySelector('#acc-logout').onclick = () => logout(false);
     app.querySelector('#acc-delete').onclick = async () => {
+      if (u.cloud) {
+        const ok = await modal({ title: `Delete account "${u.name}"?`, okText: 'Delete', body: `<p>Your profile and study sets will be removed from the cloud. This cannot be undone.</p>${pwField('cur', 'Enter your password to confirm')}<div class="error" hidden></div>`,
+          onOpen(m, close) { wireEyes(m); m.querySelector('#m-ok').onclick = async () => { try { await Cloud.deleteAccount(m.querySelector('#cur').value); close(true); } catch (err) { showErr(m, err.message); } }; } });
+        if (ok) { Store.users.setCurrent(null); toast('Account deleted'); location.hash = '#login'; route(); }
+        return;
+      }
       const v = u.passHash ? await confirmWithPassword(u, `Delete account "${u.name}"?`, 'Your stats will be removed. Your note sets stay on this device.', 'Delete')
         : await modal({ title: `Delete account "${u.name}"?`, okText: 'Delete', body: '<p>Your stats will be removed. Your note sets stay on this device.</p>' });
       if (v) { Store.users.save(users().filter(x => x.id !== u.id)); Store.users.setCurrent(null); loginTarget = null; toast('Account deleted'); location.hash = '#login'; route(); }
@@ -786,12 +949,12 @@
         const data = JSON.parse(await e.target.files[0].text());
         const list = data.creations || data;
         let n = 0;
-        for (const c of list) if (c && c.id && Array.isArray(c.cards)) { await Store.put(c); n++; }
+        for (const c of list) if (c && c.id && Array.isArray(c.cards)) { await putC(c); n++; }
         if (Array.isArray(data.users)) { const cur = users(); for (const iu of data.users) if (iu && iu.id && !cur.some(x => x.id === iu.id)) cur.push(iu); Store.users.save(cur); }
         toast(`Imported ${n} set${n === 1 ? '' : 's'}`);
       } catch (err) { toast('Import failed: ' + err.message); }
     };
-    app.querySelector('#sample').onclick = async () => { await Store.put(await sampleCreation(u)); toast('Sample added'); };
+    app.querySelector('#sample').onclick = async () => { await putC(await sampleCreation(u)); toast('Sample added'); };
     app.querySelector('#wipe').onclick = async () => {
       const v = await modal({ title: 'Delete everything?', okText: 'Delete all', body: '<p>All accounts, note sets and settings will be removed from this browser.</p>' });
       if (v) { await Store.clear(); localStorage.clear(); try { sessionStorage.clear(); } catch (e) { /* ignore */ } toast('All data deleted'); location.hash = '#signup'; route(); }
@@ -817,7 +980,7 @@
     const sw = app.querySelector('#switch');
     if (sw) sw.onclick = async () => {
       const v = await modal({ title: 'Game mode', current: c.mode, options: Object.entries(MODES).map(([k, mm]) => ({ value: k, label: mm.name, desc: mm.desc, icon: I(mm.icon) })) });
-      if (v && v !== c.mode) { c.mode = v; await Store.put(c); route(); }
+      if (v && v !== c.mode) { c.mode = v; await putC(c); route(); }
     };
     const root = app.querySelector('#game');
     const u = currentUser();
@@ -827,7 +990,7 @@
         settings: s,
         saveSettings: patch => Store.settings.update(patch),
         generate: () => API.lecture({ creation: c, apiKey: s.apiKey, model: s.model }),
-        save: cc => Store.put(cc),
+        save: cc => putC(cc),
         done: r => onDone(c, r),
         confirm: (title, text) => modal({ title, okText: 'Rewrite', body: `<p>${esc(text)}</p>` }),
         exportForAudio: cc => {
@@ -888,5 +1051,6 @@
     };
   }
 
-  route();
+  app.innerHTML = '<div class="lec-loading"><span class="spinner"></span></div>';
+  Cloud.init().finally(route);
 })();
