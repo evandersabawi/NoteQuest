@@ -53,7 +53,6 @@ const Icons = (() => {
     play: '<path d="m6 3 14 9-14 9z" fill="currentColor"/>',
     pause: '<rect x="6" y="4" width="4" height="16" rx="1" fill="currentColor"/><rect x="14" y="4" width="4" height="16" rx="1" fill="currentColor"/>',
     skipBack: '<path d="m19 20-10-8 10-8z" fill="currentColor"/><path d="M5 19V5"/>',
-    skipNext: '<path d="m5 4 10 8-10 8z" fill="currentColor"/><path d="M19 5v14"/>',
     lecture: '<path d="M22 10v6"/><path d="m2 10 10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/>',
     logo: '<rect x="4" y="2" width="16" height="20" rx="3"/><path d="M13.5 6 9 13h3.5L11 18l4.5-7H12z" fill="currentColor" stroke="none"/>',
   };
