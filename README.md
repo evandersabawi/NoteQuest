@@ -48,7 +48,7 @@ If you unzip the download and see only the header bar, check that a `js` folder 
 
 - Photos are downscaled in the browser (longest side 1568px, JPEG) before being sent, so a page of notes costs roughly 1,500 input tokens.
 - Export/Import in Settings moves your sets between devices as a JSON file.
-- The default model is Claude Opus 5; Sonnet 5 is available in Settings for cheaper generation.
+- The default model is Claude Haiku 4.5 (cheapest); Sonnet 5 and Opus 5 are available in Settings for higher quality.
 - If your Anthropic account runs out of credits, the Create page shows an "out of credits" banner with a link to the billing page. Rate limits, overload and bad keys get plain-language messages too.
 
 ## Lecture audio (Kokoro, free, nothing to install)
@@ -87,3 +87,8 @@ One-time setup (already done for this repo): create a Firebase project, enable E
 Firestore database and publish `firestore.rules`, add a Web app and paste its config into `js/firebase-config.js`,
 and add `evandersabawi.github.io` to Authentication → Settings → Authorized domains. Whenever `firestore.rules`
 changes, paste it into Firestore → Rules again and publish.
+
+## Music (Spotify) and the Ask box
+
+- **Ask** (top bar) is a command box. Commands: `help`, `play <song>`, `pause`, `resume`, `next`, `previous`, `study <set>`, `quiz <set>`, `lecture <set>`, `create`, `home`, `creations`, `music`, `settings`, `theme <name>`, `logout`. Anything else is answered by Claude (Haiku, a fraction of a cent) with knowledge of the app.
+- **Spotify**: one-time setup at https://developer.spotify.com/dashboard: create an app, add the site URL (shown in Settings → Spotify) as a Redirect URI, enable Web API and Web Playback SDK, paste the Client ID into Settings, press Connect. Playback control needs Spotify Premium. Songs play on your active Spotify device, or in the page itself if none is open.

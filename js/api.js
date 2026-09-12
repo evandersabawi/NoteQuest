@@ -127,7 +127,6 @@ Aim for 700 to 1100 words in 4 to 7 sections. Open with a one-or-two-sentence ho
       model,
       max_tokens: maxTokens,
       system,
-      thinking: { type: 'adaptive' },
       messages: [{ role: 'user', content }],
       output_config: { format: { type: 'json_schema', schema } },
     };
@@ -137,6 +136,8 @@ Aim for 700 to 1100 words in 4 to 7 sections. Open with a one-or-two-sentence ho
       'anthropic-version': '2023-06-01',
       'anthropic-dangerous-direct-browser-access': 'true',
     };
+    // Haiku 4.5 takes a fixed thinking budget (or none); the 4.6+ family uses adaptive thinking.
+    if (!/haiku/.test(model)) body.thinking = { type: 'adaptive' };
     // Server-side refusal fallbacks are supported on the Opus 5 / Fable tiers.
     if (/^claude-(opus-5|fable)/.test(model)) {
       body.fallbacks = 'default';
@@ -193,6 +194,21 @@ Aim for 700 to 1100 words in 4 to 7 sections. Open with a one-or-two-sentence ho
     return request({ apiKey, model, system: LECTURE_SYSTEM, content: [{ type: 'text', text: lines.join('\n') }], schema: LECTURE_SCHEMA, maxTokens: 8000 });
   }
 
+  // Short plain-text answer (used by the in-app assistant).
+  async function ask({ apiKey, model, system, history = [], question }) {
+    if (!apiKey) throw new Error('No API key set. Add one in Settings.');
+    const body = { model, max_tokens: 600, system, messages: [...history, { role: 'user', content: question }] };
+    if (!/haiku/.test(model)) body.thinking = { type: 'adaptive' };
+    const headers = { 'content-type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' };
+    let res;
+    try { res = await fetch(ENDPOINT, { method: 'POST', headers, body: JSON.stringify(body) }); }
+    catch (e) { const err = new Error('Could not reach the Claude API. Check your internet connection.'); err.kind = 'network'; throw err; }
+    if (!res.ok) { let j = null; try { j = await res.json(); } catch (e) { /* ignore */ } throw friendlyError(res.status, j); }
+    const data = await res.json();
+    if (data.stop_reason === 'refusal') return 'I can\'t help with that one.';
+    return data.content.filter(b => b.type === 'text').map(b => b.text).join('').trim();
+  }
+
   // ---------- image helpers ----------
   async function loadBitmap(file) {
     try {
@@ -229,5 +245,5 @@ Aim for 700 to 1100 words in 4 to 7 sections. Open with a one-or-two-sentence ho
     return draw(bmp, 480).toDataURL('image/jpeg', 0.7);
   }
 
-  return { generate, lecture, toBase64, thumbnail, friendlyError, SCHEMA };
+  return { generate, lecture, ask, toBase64, thumbnail, friendlyError, SCHEMA };
 })();

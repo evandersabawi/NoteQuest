@@ -9,7 +9,8 @@ const Cloud = (() => {
   const cfg = () => (window.FIREBASE_CONFIG && window.FIREBASE_CONFIG.apiKey) ? window.FIREBASE_CONFIG : null;
   let A = null, F = null, auth = null, db = null, user = null, prof = null, readyP = null, failed = null;
   const saveTimers = new Map();
-  const enabled = () => !!cfg() && !failed;
+  // localStorage 'notequest.devLocal' = '1' forces device-only accounts (handy for testing without a cloud login).
+  const enabled = () => !!cfg() && !failed && localStorage.getItem('notequest.devLocal') !== '1';
   const profile = () => (user && prof) ? prof : null;
   const lower = n => String(n || '').trim().toLowerCase();
   const isEmail = s => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s || '');

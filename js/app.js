@@ -19,13 +19,16 @@
     paper:    { name: 'Paper',    swatch: ['#f6f1e7', '#c2410c', '#0e7490'] },
   };
   const MODELS = [
-    ['claude-opus-5', 'Claude Opus 5 (default, best quality)'],
-    ['claude-sonnet-5', 'Claude Sonnet 5 (cheaper, faster)'],
+    ['claude-haiku-4-5', 'Claude Haiku 4.5 (default, cheapest)'],
+    ['claude-sonnet-5', 'Claude Sonnet 5 (better, pricier)'],
+    ['claude-opus-5', 'Claude Opus 5 (best quality, expensive)'],
     ['claude-fable-5-1', 'Claude Fable 5.1 (most capable, most expensive)'],
   ];
   const COLORS = ['#8b7cff', '#2dd4f5', '#7ee787', '#ff9e5e', '#ff4fa3', '#f5d76e', '#5eead4', '#ff5c7a', '#a3e635', '#fb923c', '#60a5fa', '#c084fc'];
 
-  const settings = () => Object.assign({ model: 'claude-opus-5', theme: 'midnight' }, Store.settings.get());
+  const settings = () => Object.assign({ model: 'claude-haiku-4-5', theme: 'midnight' }, Store.settings.get());
+  // One-time switch of the saved default to Haiku to cut costs (a model picked on purpose in Settings later is kept).
+  (() => { const s = Store.settings.get(); if (!s.modelDefaultV2) { Store.settings.update({ model: 'claude-haiku-4-5', modelDefaultV2: true }); } })();
   const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2));
   const localDay = (d = new Date()) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   const rnd = n => Math.floor(Math.random() * n);
@@ -156,20 +159,89 @@
       document.getElementById('sideUser').innerHTML = '';
       return;
     }
-    top.innerHTML = `<details class="menu user-menu"><summary class="user-chip">${avatarHTML(u, 'sm')}<span>${esc(u.name)}</span>${I('chevronDown', 'chev')}</summary>
+    top.innerHTML = `<button class="btn ghost ask-btn" id="ask-btn" title="Ask or type a command">${I('sparkles')} <span>Ask</span></button><details class="menu user-menu"><summary class="user-chip">${avatarHTML(u, 'sm')}<span>${esc(u.name)}</span>${I('chevronDown', 'chev')}</summary>
       <div class="menu-list">
         <a href="#home">${I('user')} My profile</a>
         <a href="#settings">${I('settings')} Account settings</a>
         <button id="switch-acc">${I('switch')} Switch account</button>
         <button id="logout" class="danger">${I('logout')} Log out</button>
       </div></details>`;
+    top.querySelector('#ask-btn').onclick = () => Assistant.toggle(true);
     const menu = top.querySelector('details');
     menu.querySelectorAll('a').forEach(a => a.onclick = () => { menu.open = false; });
     top.querySelector('#logout').onclick = () => { menu.open = false; logout(false); };
     top.querySelector('#switch-acc').onclick = () => { menu.open = false; logout(true); };
     const xp = u.stats.xp, lv = level(xp);
     document.getElementById('sideUser').innerHTML = `<a href="#home" class="side-user-link">${avatarHTML(u, 'md')}<div><b>${esc(u.name)}</b><small>Level ${lv} · ${xp} XP</small></div></a>`;
+    renderMusicBar();
   }
+  // Sidebar mini player.
+  function renderMusicBar() {
+    const bar = document.getElementById('musicBar'); if (!bar) return;
+    if (!currentUser()) { bar.innerHTML = ''; Music.poll(false); return; }
+    if (!Music.connected()) { bar.innerHTML = `<a href="#music" class="music-connect">${I('volume')} <span>Connect Spotify</span></a>`; Music.poll(false); return; }
+    const st = Music.last();
+    const t = st && st.track;
+    bar.innerHTML = `<a href="#music" class="music-now">${t && t.image ? `<img src="${esc(t.image)}" alt="">` : `<span class="music-art">${I('volume')}</span>`}<span class="music-text"><b>${t ? esc(t.name) : 'Nothing playing'}</b><small>${t ? esc(t.artists) : 'Open Music to pick a song'}</small></span></a>
+      <div class="music-ctl"><button class="icon-btn" id="m-prev" title="Previous">${I('skipBack')}</button><button class="icon-btn" id="m-toggle" title="Play/pause">${st && st.playing ? I('pause') : I('play')}</button><button class="icon-btn" id="m-next" title="Next">${I('skipNext')}</button></div>`;
+    const guard = fn => async () => { try { await fn(); } catch (e) { toast(e.code === 'premium' ? e.message : (e.message || 'Spotify error'), 4000); } };
+    bar.querySelector('#m-prev').onclick = guard(Music.previous);
+    bar.querySelector('#m-toggle').onclick = guard(Music.toggle);
+    bar.querySelector('#m-next').onclick = guard(Music.next);
+    Music.poll(true);
+  }
+  Music.onChange(() => { renderMusicBar(); const np = document.getElementById('music-np'); if (np) np.innerHTML = nowPlayingHTML(); });
+  function nowPlayingHTML() {
+    const st = Music.last(), t = st && st.track;
+    if (!t) return `<p class="hint">Nothing is playing. Search for a song below, or press play in Spotify on any device.</p>`;
+    return `<div class="np">${t.image ? `<img src="${esc(t.image)}" alt="">` : ''}<div><b>${esc(t.name)}</b><small>${esc(t.artists)}${st.device ? ' · on ' + esc(st.device) : ''}</small></div><span class="pill ${st.playing ? 'good' : ''}">${st.playing ? 'Playing' : 'Paused'}</span></div>`;
+  }
+
+  // ---------- Music page ----------
+  async function renderMusic() {
+    if (!Music.connected()) {
+      const hasId = !!Music.clientId();
+      app.innerHTML = `<section class="music">
+        <h1>Music</h1>
+        <div class="empty small">
+          <p><b>Play your Spotify while you study.</b> Search songs, star favourites, and control playback from the sidebar or by typing <code>play &lt;song&gt;</code> in Ask.</p>
+          <p class="hint">Needs a Spotify Premium account (Spotify only lets Premium accounts be controlled by apps) and a free Spotify developer Client ID, set once in Settings.</p>
+          ${hasId ? `<button class="btn primary big" id="sp-connect">${I('volume')} Connect Spotify</button>` : `<a class="btn primary big" href="#settings">${I('settings')} Add your Client ID in Settings</a>`}
+          <div class="error" id="sp-err" hidden></div>
+        </div>
+      </section>`;
+      const b = app.querySelector('#sp-connect'); if (b) b.onclick = async () => { try { await Music.connect(); } catch (e) { const el = app.querySelector('#sp-err'); el.hidden = false; el.textContent = e.message; } };
+      return;
+    }
+    app.innerHTML = `<section class="music">
+      <div class="page-head"><h1>Music</h1><button class="btn ghost" id="sp-off">${I('logout')} Disconnect</button></div>
+      <div id="music-np">${nowPlayingHTML()}</div>
+      <form class="music-search" id="sp-form"><input class="input" id="sp-q" placeholder="Search a song or artist…" autocomplete="off"><button class="btn primary" type="submit">Search</button></form>
+      <div class="error" id="sp-err" hidden></div>
+      <div id="sp-results"></div>
+      <h2>Favourites</h2>
+      <div id="sp-favs"></div>
+    </section>`;
+    Music.state();
+    const err = app.querySelector('#sp-err');
+    const fail = e => { err.hidden = false; err.textContent = e.code === 'premium' ? e.message : (e.message || 'Spotify error'); };
+    const trackRow = (t, extra = '') => `<div class="track"><img src="${esc(t.image || '')}" alt="" onerror="this.style.visibility='hidden'"><div class="track-text"><b>${esc(t.name)}</b><small>${esc(t.artists)}</small></div><button class="icon-btn" data-play="${esc(t.uri)}" title="Play">${I('play')}</button><button class="icon-btn ${Music.isFav(t.uri) ? 'on' : ''}" data-fav="${esc(t.uri)}" title="Favourite">${I('star')}</button>${extra}</div>`;
+    const wire = (root, tracks) => {
+      root.querySelectorAll('[data-play]').forEach(b => b.onclick = async () => { err.hidden = true; try { await Music.play(b.dataset.play); } catch (e) { fail(e); } });
+      root.querySelectorAll('[data-fav]').forEach(b => b.onclick = () => { const t = tracks.find(x => x.uri === b.dataset.fav); if (t) { Music.toggleFav(t); renderFavs(); b.classList.toggle('on', Music.isFav(t.uri)); } });
+    };
+    const renderFavs = () => { const f = Music.favs(); const box = app.querySelector('#sp-favs'); if (!box) return; box.innerHTML = f.length ? f.map(t => trackRow(t)).join('') : '<p class="hint">Star a song in the search results to keep it here.</p>'; wire(box, f); };
+    renderFavs();
+    app.querySelector('#sp-form').onsubmit = async e => {
+      e.preventDefault(); err.hidden = true;
+      const q = app.querySelector('#sp-q').value.trim(); if (!q) return;
+      const box = app.querySelector('#sp-results'); box.innerHTML = '<p class="hint">Searching…</p>';
+      try { const tracks = await Music.search(q, 10); box.innerHTML = tracks.length ? tracks.map(t => trackRow(t)).join('') : '<p class="hint">No results.</p>'; wire(box, tracks); }
+      catch (e) { box.innerHTML = ''; fail(e); }
+    };
+    app.querySelector('#sp-off').onclick = () => { Music.disconnect(); toast('Spotify disconnected'); renderMusic(); renderMusicBar(); };
+  }
+
   document.addEventListener('click', e => { document.querySelectorAll('details.user-menu[open]').forEach(d => { if (!d.contains(e.target)) d.open = false; }); });
 
   async function logout(switching) {
@@ -204,6 +276,7 @@
       case 'creations': applyTheme(settings().theme); setNav('creations'); return renderCreations();
       case 'create': applyTheme(createState.theme); setNav('create'); return renderCreate();
       case 'settings': applyTheme(settings().theme); setNav('settings'); return renderSettings();
+      case 'music': applyTheme(settings().theme); setNav('music'); return renderMusic();
       case 'study': setNav(''); return renderPlay(id, null);
       case 'quiz': setNav(''); return renderPlay(id, 'quiz');
       case 'lecture': setNav(''); return renderPlay(id, 'lecture');
@@ -1010,6 +1083,11 @@
         <p class="hint" id="helper-status">Checking helper…</p>
       </details>
 
+      <h2>Spotify</h2>
+      <p class="hint">Play music while you study. One-time setup: at <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener">developer.spotify.com/dashboard</a> create an app, add <code>${esc(Music.redirectUri())}</code> as a Redirect URI, tick "Web API" and "Web Playback SDK", then paste the Client ID here. Playback control needs Spotify Premium.</p>
+      <label class="field"><span>Spotify Client ID</span><input class="input" id="spotifyClientId" value="${esc(s.spotifyClientId || '')}" autocomplete="off" placeholder="32-character id from the dashboard"></label>
+      <div class="row"><button class="btn secondary" id="sp-connect2">${I('volume')} ${Music.connected() ? 'Reconnect Spotify' : 'Connect Spotify'}</button>${Music.connected() ? `<button class="btn ghost" id="sp-off2">Disconnect</button>` : ''}</div>
+
       <h2>Appearance</h2>
       <div class="field"><span>App theme</span>
         <div class="theme-row">${Object.entries(THEMES).map(([k, t]) => `<button type="button" class="theme-chip ${s.theme === k ? 'active' : ''}" data-theme-pick="${k}">${swatchHTML(t)}<span>${t.name}</span></button>`).join('')}</div></div>
@@ -1056,10 +1134,13 @@
     app.querySelector('#save').onclick = () => {
       Store.settings.update({ apiKey: key.value.trim(), model: app.querySelector('#model').value, theme,
         autoLecture: app.querySelector('#autoLecture').checked, audioGpu: app.querySelector('#audioGpu').checked, kokoroVoice: app.querySelector('#kokoroVoice').value,
-        audioEngine: app.querySelector('#audioEngine').value, helperUrl: app.querySelector('#helperUrl').value.trim() || 'http://localhost:8788' });
+        audioEngine: app.querySelector('#audioEngine').value, helperUrl: app.querySelector('#helperUrl').value.trim() || 'http://localhost:8788',
+        spotifyClientId: app.querySelector('#spotifyClientId').value.trim() });
       createState.theme = theme;
       toast('Settings saved');
     };
+    app.querySelector('#sp-connect2').onclick = async () => { Store.settings.update({ spotifyClientId: app.querySelector('#spotifyClientId').value.trim() }); try { await Music.connect(); } catch (e) { toast(e.message, 4000); } };
+    const spOff = app.querySelector('#sp-off2'); if (spOff) spOff.onclick = () => { Music.disconnect(); toast('Spotify disconnected'); renderSettings(); };
     app.querySelector('#export').onclick = async () => {
       const blob = new Blob([JSON.stringify({ notequest: 2, users: users(), creations: await Store.all() })], { type: 'application/json' });
       const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `notequest-${localDay()}.json`; a.click();
@@ -1171,6 +1252,15 @@
     };
   }
 
+  Assistant.init({
+    sets: async () => mine(await Store.all(), currentUser() || { id: '' }),
+    openSet: (id, mode) => { location.hash = (mode === 'quiz' ? '#quiz/' : mode === 'lecture' ? '#lecture/' : '#study/') + id; },
+    go: h => { location.hash = h; },
+    setTheme: t => { if (!THEMES[t]) return false; Store.settings.update({ theme: t }); createState.theme = t; applyTheme(t); return true; },
+    logout: () => logout(false),
+    ask: ({ system, history, question }) => { const s = settings(); return API.ask({ apiKey: s.apiKey, model: s.model, system, history, question }); },
+  });
   app.innerHTML = '<div class="lec-loading"><span class="spinner"></span></div>';
-  Cloud.init().finally(route);
+  Music.handleRedirect().then(ok => { if (ok) toast('Spotify connected'); }).catch(e => toast(e.message, 6000))
+    .finally(() => Cloud.init().finally(route));
 })();
