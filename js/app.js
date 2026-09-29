@@ -41,18 +41,28 @@
     const list = users(); const i = list.findIndex(x => x.id === u.id); if (i >= 0) list[i] = u; else list.push(u); Store.users.save(list);
   }
   // Creations: local store first, then the cloud copy (without audio blobs) when signed in to a cloud account.
-  async function putC(c) { c.updatedAt = Date.now(); await Store.put(c); const me = Cloud.enabled() && Cloud.profile(); if (me && c.owner === me.id) Cloud.pushCreation(c); }
-  async function delC(id) { await Store.del(id); if (Cloud.enabled() && Cloud.profile()) Cloud.deleteCreation(id); }
+  // Deleted sets leave a marker behind, so a late save or a sync from another device cannot bring them back.
+  const DELKEY = 'notequest.deleted';
+  const deletedIds = () => { try { return new Set(JSON.parse(localStorage.getItem(DELKEY) || '[]')); } catch (e) { return new Set(); } };
+  const markDeleted = (id, on) => { const s = deletedIds(); if (on) s.add(id); else s.delete(id); try { localStorage.setItem(DELKEY, JSON.stringify([...s].slice(-1000))); } catch (e) { /* ignore */ } };
+  async function putC(c) { if (deletedIds().has(c.id)) return; c.updatedAt = Date.now(); await Store.put(c); const me = Cloud.enabled() && Cloud.profile(); if (me && c.owner === me.id) Cloud.pushCreation(c); }
+  async function delC(id) { markDeleted(id, true); await Store.del(id); if (Cloud.enabled() && Cloud.profile()) Cloud.deleteCreation(id); }
   // After a cloud login: merge the account's sets from the cloud into this device, and push any local ones it lacks.
   async function syncDown(p) {
     try {
       const remote = await Cloud.pullCreations();
       const ids = new Set(remote.map(r => r.id));
+      const gone = deletedIds();
+      let changed = false;
       for (const r of remote) {
+        if (r.deleted) { markDeleted(r.id, true); if (await Store.get(r.id)) { await Store.del(r.id); changed = true; } continue; }
+        if (gone.has(r.id)) { Cloud.deleteCreation(r.id); if (await Store.get(r.id)) { await Store.del(r.id); changed = true; } continue; }
         const local = await Store.get(r.id);
+        if (!local || (r.updatedAt || 0) > (local.updatedAt || 0)) changed = true;
         if (!local || (r.updatedAt || 0) > (local.updatedAt || 0)) await Store.put(Object.assign({}, r, { audioClips: (local && local.audioClips) || {} }));
       }
-      for (const c of await Store.all()) if (c.owner === p.id && !ids.has(c.id)) Cloud.pushCreation(c);
+      for (const c of await Store.all()) if (c.owner === p.id && !ids.has(c.id) && !gone.has(c.id)) Cloud.pushCreation(c);
+      return changed;
     } catch (e) { toast('Could not sync your sets: ' + (e.message || e), 5000); }
   }
   function newUser(name, avatar) {
@@ -651,7 +661,7 @@
         const cur = users(); let nu = 0, nc = 0;
         for (const iu of (data.users || [])) if (iu && iu.id && !cur.some(x => x.id === iu.id)) { cur.push(iu); nu++; }
         Store.users.save(cur);
-        for (const c of (data.creations || [])) if (c && c.id && Array.isArray(c.cards)) { await Store.put(c); nc++; }
+        for (const c of (data.creations || [])) if (c && c.id && Array.isArray(c.cards)) { markDeleted(c.id, false); await Store.put(c); nc++; }
         toast(`Imported ${nu} account${nu === 1 ? '' : 's'} and ${nc} set${nc === 1 ? '' : 's'}. Log in with your password.`, 5000);
         loginTarget = null; renderAuth('login');
       } catch (err) { toast('Import failed: ' + err.message); }
@@ -1069,7 +1079,7 @@
         const data = JSON.parse(await e.target.files[0].text());
         const list = data.creations || data;
         let n = 0;
-        for (const c of list) if (c && c.id && Array.isArray(c.cards)) { await putC(c); n++; }
+        for (const c of list) if (c && c.id && Array.isArray(c.cards)) { markDeleted(c.id, false); await putC(c); n++; }
         if (Array.isArray(data.users)) { const cur = users(); for (const iu of data.users) if (iu && iu.id && !cur.some(x => x.id === iu.id)) cur.push(iu); Store.users.save(cur); }
         toast(`Imported ${n} set${n === 1 ? '' : 's'}`);
       } catch (err) { toast('Import failed: ' + err.message); }
@@ -1172,5 +1182,10 @@
   }
 
   app.innerHTML = '<div class="lec-loading"><span class="spinner"></span></div>';
-  Cloud.init().finally(route);
+  Cloud.init().finally(() => {
+    route();
+    // On every page load, quietly catch up with the cloud (including sets deleted on another device).
+    const p = Cloud.enabled() && Cloud.profile();
+    if (p) syncDown(p).then(changed => { if (changed && /^#?(home|creations)?$/.test(location.hash)) route(); });
+  });
 })();

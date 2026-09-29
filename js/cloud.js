@@ -224,7 +224,7 @@ const Cloud = (() => {
     saveTimers.set(c.id, setTimeout(() => { const data = strip(c); data.updatedAt = Date.now(); F.setDoc(D('users', user.uid, 'creations', c.id), data).catch(e => console.warn('Cloud save failed', e)); }, 1200));
   }
   async function pushNow(c) { if (!user) return; const data = strip(c); data.updatedAt = Date.now(); await F.setDoc(D('users', user.uid, 'creations', c.id), data); }
-  async function deleteCreation(id) { if (!user) return; try { await F.deleteDoc(D('users', user.uid, 'creations', id)); } catch (e) { console.warn(e); } }
+  async function deleteCreation(id) { if (!user) return; clearTimeout(saveTimers.get(id)); saveTimers.delete(id); try { await F.setDoc(D('users', user.uid, 'creations', id), { id, deleted: true, updatedAt: Date.now() }); } catch (e) { console.warn(e); } }
   async function pullCreations() { if (!user) return []; const snaps = await F.getDocs(F.collection(db, 'users', user.uid, 'creations')); return snaps.docs.map(d => d.data()); }
 
   return { enabled, init, profile, user: () => user, signUp, signIn, signOut, recoveryInfo, resetByEmail, resetByAnswer, changePassword, setSecurityQuestion, changeUsername, changeEmail, deleteAccount, saveProfile, pushCreation, pushNow, deleteCreation, pullCreations, friendly, isEmail };

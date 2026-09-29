@@ -46,7 +46,7 @@ const Store = (() => {
     all: () => run('readonly', s => s.getAll(), lsAll),
     get: id => run('readonly', s => s.get(id), () => lsAll().find(c => c.id === id)),
     put: c => run('readwrite', s => s.put(c), () => { const l = lsAll().filter(x => x.id !== c.id); l.push(c); lsSave(l); }),
-    del: id => run('readwrite', s => s.delete(id), () => lsSave(lsAll().filter(x => x.id !== id))),
+    del: id => { try { if (localStorage.getItem(LS)) lsSave(lsAll().filter(x => x.id !== id)); } catch (e) { /* ignore */ } return run('readwrite', s => s.delete(id), () => {}); },
     clear: () => run('readwrite', s => s.clear(), () => lsSave([])),
     settings: {
       get() { return json(KEY, {}); },
