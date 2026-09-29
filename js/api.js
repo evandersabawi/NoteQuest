@@ -61,6 +61,8 @@ Read every photo carefully, including margins, diagrams, tables, and small annot
 Guidelines:
 - cards: cover ALL important content. Typically 15-40 cards depending on how dense the notes are. Fronts are short prompts; backs are concise answers (under 15 words when possible).
 - questions: 12-25 multiple-choice questions. Each has exactly 4 choices, exactly one correct, and the wrong choices must be plausible (common misconceptions, similar terms). Vary which index is correct. Include some questions that require applying or connecting ideas, not just recall.
+- Every card and question must stand completely on its own. The student will see ONLY the text you write, never the photos. Do not write anything that needs a diagram, figure, graph, table, map, picture, worked example, or passage from the notes in order to be answered. Never use phrases such as "in the diagram", "the figure above", "as shown", "in the example", "according to the notes", "on page 2", "label A", or "the following table". If a fact comes from a diagram or example, either rewrite it so all the needed information is stated in words inside the question itself (for example give the numbers, names, or description directly), or leave it out. If it cannot be asked fairly in text alone, skip it.
+- Before finishing, reread each card and question as someone who has never seen the notes. If it cannot be answered from its own text plus subject knowledge, fix it or remove it.
 - monsters: exactly 5 punny names tied to the subject, ordered weakest to strongest (the last one is the boss).
 - Write in the same language as the notes.`;
 
