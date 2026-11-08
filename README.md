@@ -1,4 +1,4 @@
-# NoteQuest
+# Notely
 
 A personal study app: photograph your notes, pick a game mode and a theme, and Claude turns them into flash cards, a monster-battle game, a matching game, a speed round, and a quiz. Everything runs in the browser; there is no server.
 
@@ -10,10 +10,13 @@ Layout: a top bar with log in / sign up / log out, a sidebar with Home, Your cre
 - `js/icons.js` – inline SVG line icons, generated creature avatars and Notemon monsters (no emoji anywhere)
 - `js/store.js` – IndexedDB storage (creations) + localStorage (settings, accounts)
 - `js/api.js` – the Claude API call and image compression
+- `js/cloud.js`, `js/firebase-config.js` – Firebase cloud accounts and set sync
+- `js/audiogen.js`, `js/kokoro-worker.js` – lecture audio generation (in-browser Kokoro or the local helper)
 - `js/games.js` – Flash Cards, Notemon, Match, Blitz, and Quiz
 - `js/lecture.js` – Lecture mode: Claude writes a spoken lecture; pre-generated Kokoro audio plays while the transcript highlights each word
 - `audio/` – pre-generated lecture clips (`<sha256 of sentence>.opus`, 32 kbps) plus `manifest.json` and the sample lecture text
 - `tools/` – the local audio pipeline (see below)
+- `firestore.rules` – Firestore security rules (paste into the Firebase console when they change)
 - `js/app.js` – accounts, routing, Home, Your Creations, Create, Settings, sample set
 
 ## Run locally
@@ -21,15 +24,15 @@ Layout: a top bar with log in / sign up / log out, a sidebar with Home, Your cre
 Any static file server works. For example:
 
 ```bash
-python -m http.server 8765 --directory notequest
+python -m http.server 8765
 ```
 
-Then open http://localhost:8765. Opening `index.html` directly from disk also works in most browsers.
+Run it from the repository root, then open http://localhost:8765. Use a server rather than opening `index.html` from disk: the in-browser audio worker and cloud login need an http:// origin.
 
 ## Deploy to GitHub Pages
 
 1. Create a new GitHub repository (public or private both work for Pages on a personal account with a Pro plan; public is simplest).
-2. Copy the contents of the `notequest` folder into the repo root and push.
+2. Push this repository (the site files already sit at the root).
 3. In the repo: Settings → Pages → Source: "Deploy from a branch" → branch `main`, folder `/ (root)` → Save.
 4. After a minute the site is live at `https://<your-username>.github.io/<repo-name>/`.
 
@@ -42,7 +45,7 @@ Then open http://localhost:8765. Opening `index.html` directly from disk also wo
 
 Use "Load a sample" on the Home screen (or in Settings) to try the games without an API key.
 
-If you unzip the download and see only the header bar, check that a `js` folder with four files sits next to `index.html`.
+If you see only the header bar, check that the `js` folder sits next to `index.html` and that you are serving the folder over http.
 
 ## Notes
 

@@ -1,8 +1,23 @@
 // Storage. Creations live in IndexedDB (falls back to localStorage if IndexedDB is unavailable).
 // Settings and user accounts live in localStorage.
 const Store = (() => {
+  // The app used to be called NoteQuest. Move anything saved under the old key prefix to the new one, once.
+  // The IndexedDB database keeps its original name ('notequest') so existing study sets stay where they are.
+  (function migrateOldKeys() {
+    for (const name of ['localStorage', 'sessionStorage']) {
+      try {
+        const area = window[name];
+        for (const k of Object.keys(area)) {
+          if (!k.startsWith('notequest.')) continue;
+          const nk = 'notely.' + k.slice('notequest.'.length);
+          if (area.getItem(nk) === null) area.setItem(nk, area.getItem(k));
+          area.removeItem(k);
+        }
+      } catch (e) { /* storage unavailable */ }
+    }
+  })();
   const DB = 'notequest', VER = 1;
-  const LS = 'notequest.creations';
+  const LS = 'notely.creations';
   let idbFailed = !window.indexedDB;
 
   const lsAll = () => { try { return JSON.parse(localStorage.getItem(LS) || '[]'); } catch (e) { return []; } };
@@ -40,7 +55,7 @@ const Store = (() => {
   }
 
   const json = (key, def) => { try { return JSON.parse(localStorage.getItem(key)) ?? def; } catch (e) { return def; } };
-  const KEY = 'notequest.settings', USERS = 'notequest.users', CUR = 'notequest.currentUser';
+  const KEY = 'notely.settings', USERS = 'notely.users', CUR = 'notely.currentUser';
 
   return {
     all: () => run('readonly', s => s.getAll(), lsAll),

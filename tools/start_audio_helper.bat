@@ -1,5 +1,5 @@
 @echo off
-title NoteQuest audio helper
+title Notely audio helper
 cd /d "%~dp0.."
 if not exist "tools\.venv\Scripts\python.exe" (
   echo The Python environment is missing. See README.md, "Lecture audio" section, for the one-time setup.

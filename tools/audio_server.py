@@ -1,4 +1,4 @@
-"""Local audio helper. Runs on your PC and lets the NoteQuest web app generate Kokoro audio automatically.
+"""Local audio helper. Runs on your PC and lets the Notely web app generate Kokoro audio automatically.
 
 Start it with tools/start_audio_helper.bat (or: tools/.venv/Scripts/python tools/audio_server.py).
 Leave the window open. The app finds it at http://localhost:8788.
@@ -111,7 +111,7 @@ class Handler(BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     voice = manifest.get("voice") or DEFAULT_VOICE
-    print(f"NoteQuest audio helper starting on http://localhost:{PORT}  (project: {ROOT})", flush=True)
+    print(f"Notely audio helper starting on http://localhost:{PORT}  (project: {ROOT})", flush=True)
     print("Loading Kokoro…", flush=True)
     get_synth(voice)
     print(f"Ready. Voice {voice}. Leave this window open; the app will generate lecture audio through it.", flush=True)

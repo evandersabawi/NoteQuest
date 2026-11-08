@@ -11,21 +11,17 @@
     blitz:   { name: 'Blitz',       icon: 'zap',    desc: '60-second speed round with streak multipliers.' },
   };
   const THEMES = {
-    midnight: { name: 'Midnight', swatch: ['#0f1020', '#8b7cff', '#ff7ce5'] },
-    ocean:    { name: 'Ocean',    swatch: ['#061a2b', '#2dd4f5', '#5eead4'] },
-    forest:   { name: 'Forest',   swatch: ['#0d1f14', '#7ee787', '#f5d76e'] },
-    sunset:   { name: 'Sunset',   swatch: ['#2a0f2e', '#ff9e5e', '#ff5e8a'] },
-    candy:    { name: 'Candy',    swatch: ['#fff0f7', '#ff4fa3', '#7c5cff'] },
-    paper:    { name: 'Paper',    swatch: ['#f6f1e7', '#c2410c', '#0e7490'] },
+    midnight: { name: 'Midnight', swatch: ['#121417', '#8db4f2'] },
+    ocean:    { name: 'Ocean',    swatch: ['#0f1a21', '#5fbcc6'] },
+    forest:   { name: 'Forest',   swatch: ['#121a15', '#8cc79a'] },
+    sunset:   { name: 'Sunset',   swatch: ['#1b1518', '#e8957a'] },
+    candy:    { name: 'Candy',    swatch: ['#fbf7f8', '#b83b65'] },
+    paper:    { name: 'Paper',    swatch: ['#f6f4ef', '#a8481f'] },
   };
-  const MODELS = [
-    ['claude-opus-5', 'Claude Opus 5 (default, best quality)'],
-    ['claude-sonnet-5', 'Claude Sonnet 5 (cheaper, faster)'],
-    ['claude-fable-5-1', 'Claude Fable 5.1 (most capable, most expensive)'],
-  ];
-  const COLORS = ['#8b7cff', '#2dd4f5', '#7ee787', '#ff9e5e', '#ff4fa3', '#f5d76e', '#5eead4', '#ff5c7a', '#a3e635', '#fb923c', '#60a5fa', '#c084fc'];
+  const MODELS = API.MODELS; // models for people who bring their own key (js/api.js)
+  const COLORS = ['#8db4f2', '#5fbcc6', '#8cc79a', '#e8957a', '#c9839e', '#d9b86c', '#7fb8a4', '#d98a8a', '#a7b97a', '#d3a07a', '#8a9fd1', '#a993c9'];
 
-  const settings = () => Object.assign({ model: 'claude-opus-5', theme: 'midnight' }, Store.settings.get());
+  const settings = () => Object.assign({ model: API.DEFAULT_MODEL, theme: 'midnight' }, Store.settings.get());
   const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2));
   const localDay = (d = new Date()) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   const rnd = n => Math.floor(Math.random() * n);
@@ -42,7 +38,7 @@
   }
   // Creations: local store first, then the cloud copy (without audio blobs) when signed in to a cloud account.
   // Deleted sets leave a marker behind, so a late save or a sync from another device cannot bring them back.
-  const DELKEY = 'notequest.deleted';
+  const DELKEY = 'notely.deleted';
   const deletedIds = () => { try { return new Set(JSON.parse(localStorage.getItem(DELKEY) || '[]')); } catch (e) { return new Set(); } };
   const markDeleted = (id, on) => { const s = deletedIds(); if (on) s.add(id); else s.delete(id); try { localStorage.setItem(DELKEY, JSON.stringify([...s].slice(-1000))); } catch (e) { /* ignore */ } };
   async function putC(c) { if (deletedIds().has(c.id)) return; c.updatedAt = Date.now(); await Store.put(c); const me = Cloud.enabled() && Cloud.profile(); if (me && c.owner === me.id) Cloud.pushCreation(c); }
@@ -108,12 +104,12 @@
   const swatchHTML = t => `<span class="swatch">${t.swatch.map(col => `<i style="background:${col}"></i>`).join('')}</span>`;
 
   // Simple modal: resolves with the chosen value, input text, true (OK) or null (cancel).
-  function modal({ title, body, options, current, okText = 'OK', onOpen }) {
+  function modal({ title, body, options, current, okText = 'OK', onOpen, userTitle = false }) {
     return new Promise(resolve => {
       const m = document.getElementById('modal');
       m.hidden = false;
       m.innerHTML = `<div class="modal-card">
-        <h3>${esc(title)}</h3>
+        <h3${userTitle ? ' data-no-i18n' : ''}>${esc(title)}</h3>
         ${body || ''}
         ${options ? `<div class="opt-list">${options.map(o => `<button class="opt ${o.value === current ? 'active' : ''}" data-v="${esc(o.value)}">${o.icon ? `<span class="opt-icon">${o.icon}</span>` : ''}<span><b>${esc(o.label)}</b>${o.desc ? `<small>${esc(o.desc)}</small>` : ''}</span></button>`).join('')}</div>` : ''}
         <div class="row right"><button class="btn ghost" id="m-cancel">Cancel</button>${options ? '' : `<button class="btn primary" id="m-ok">${esc(okText)}</button>`}</div>
@@ -429,7 +425,7 @@
       const u = newUser(name, avatar);
       await Auth.setPassword(u, app.querySelector('#new').value);
       await Auth.setRecovery(u, app.querySelector('#q').value, ans);
-      finishLogin(u, app.querySelector('#stay').checked, `Welcome to NoteQuest, ${u.name}.`);
+      finishLogin(u, app.querySelector('#stay').checked, `Welcome to Notely, ${u.name}.`);
     };
   }
 
@@ -500,7 +496,7 @@
       try {
         const p = await Cloud.signUp({ username: name, email, password: app.querySelector('#new').value, avatar, securityQ: app.querySelector('#q').value, securityA: ans, stay: app.querySelector('#stay').checked, newUser });
         await adoptLocalSets(p);
-        toast(`Welcome to NoteQuest, ${p.name}.`); location.hash = '#home'; route();
+        toast(`Welcome to Notely, ${p.name}.`); location.hash = '#home'; route();
       } catch (err) { btn.disabled = false; btn.innerHTML = 'Create account'; showErr(app, err.message); }
     };
   }
@@ -669,8 +665,8 @@
   }
   function exportAccount(u) {
     Store.all().then(all => {
-      const blob = new Blob([JSON.stringify({ notequest: 2, users: [u], creations: mine(all, u).map(c => { const { audioClips, ...rest } = c; return rest; }) })], { type: 'application/json' });
-      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `notequest-account-${u.name}.json`; a.click();
+      const blob = new Blob([JSON.stringify({ notely: 2, users: [u], creations: mine(all, u).map(c => { const { audioClips, ...rest } = c; return rest; }) })], { type: 'application/json' });
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `notely-account-${u.name}.json`; a.click();
       toast('Account file downloaded. Import it on the other device from the log-in screen.', 5000);
     });
   }
@@ -739,18 +735,17 @@
       ['flame', st, 'day streak'],
     ];
     app.innerHTML = `<section class="home">
-      <div class="hero">
+      <div class="profile-head">
         <button type="button" class="avatar-btn" id="avatarBtn" title="Change avatar">${avatarHTML(u, 'xl')}</button>
-        <div class="hero-text">
+        <div class="profile-text">
           <div class="name-row"><h1>${esc(u.name)}</h1><button class="icon-btn" id="editName" title="Change username">${I('pencil')}</button></div>
           <div class="level-row"><b>Level ${lv}</b><span class="xpbar"><i style="width:${Math.round((xp - lo) / (hi - lo) * 100)}%"></i></span><small>${xp - lo} / ${hi - lo} XP</small></div>
-          <div class="hero-badges"><span class="badge">${I('flame')} ${st}-day streak</span>${s.notemonWins ? `<span class="badge">${I('trophy')} ${s.notemonWins} Notemon win${s.notemonWins === 1 ? '' : 's'}</span>` : ''}${s.quizBest ? `<span class="badge">${I('target')} best quiz ${s.quizBest}%</span>` : ''}</div>
         </div>
         <a class="btn primary big" href="#create">${I('sparkles')} New set</a>
       </div>
 
-      <h2>Your stats</h2>
-      <div class="stats-grid">${stats.map(([i, v, l]) => `<div class="stat-card"><span class="stat-ico">${I(i)}</span><b>${esc(v)}</b><small>${esc(l)}</small></div>`).join('')}</div>
+      <h2 class="section-label">Your stats</h2>
+      <dl class="stat-list">${stats.map(([i, v, l]) => `<div><dt>${I(i)} ${esc(l)}</dt><dd>${esc(v)}</dd></div>`).join('')}</dl>
 
       <div class="section-head"><h2>Recent notes</h2>${list.length ? `<a href="#creations">See all ${I('arrowRight')}</a>` : ''}</div>
       ${list.length ? `<div class="grid">${list.slice(0, 4).map(tileHTML).join('')}</div>`
@@ -783,7 +778,6 @@
         <h1>Your creations</h1>
         <p>Nothing here yet. Snap some photos of your notes and let Claude turn them into a game.</p>
         <div class="row center"><a class="btn primary big" href="#create">${I('plus')} Create your first set</a><button class="btn ghost" id="sample">Load a sample</button></div>
-        ${s.apiKey ? '' : '<p class="hint">You will need a Claude API key. Add it in <a href="#settings">Settings</a>.</p>'}
       </section>`;
       app.querySelector('#sample').onclick = async () => { await putC(await sampleCreation(u)); toast('Sample added'); renderCreations(); };
       return;
@@ -809,8 +803,9 @@
     const lectureNote = prepping ? `<span class="tile-prep"><span class="spinner"></span> ${esc(prepping.text)}</span>` : (c.lecture ? `<span class="tile-prep ok">${I('check')} Lecture ready</span>` : '');
     const cover = c.cover ? `style="background-image:url(${c.cover})"` : '';
     return `<article class="tile" data-theme="${esc(c.theme)}">
-      <div class="tile-cover ${c.cover ? '' : 'no-img'}" ${cover}>${c.cover ? '' : `<span class="tile-ico">${I('book')}</span>`}<span class="tile-mode">${I(m.icon)} ${esc(m.name)}</span></div>
+      <div class="tile-cover" ${cover}>${c.cover ? '' : I('book')}</div>
       <div class="tile-body">
+        <span class="tile-kicker">${I(m.icon)} ${esc(m.name)}</span>
         <div class="tile-title-row">
           <h2>${esc(c.name)}</h2>
           <details class="menu"><summary aria-label="More">${I('more')}</summary><div class="menu-list">
@@ -827,7 +822,7 @@
         <div class="row tile-actions">
           <a class="btn primary" href="#study/${c.id}">${I(m.icon)} Study</a>
           <a class="btn secondary" href="#quiz/${c.id}">${I('quiz')} Quiz</a>
-          <a class="btn secondary" href="#lecture/${c.id}">${I('lecture')} Lecture</a>
+          ${I18N.lectureOK(c) ? `<a class="btn secondary" href="#lecture/${c.id}">${I('lecture')} Lecture</a>` : `<span class="btn secondary" aria-disabled="true" title="Lectures are English-only for now">${I('lecture')} Lecture</span>`}
         </div>
       </div>
     </article>`;
@@ -847,7 +842,7 @@
       const v = await modal({ title: 'Rename', okText: 'Save', body: `<input class="input" value="${esc(c.name)}" maxlength="80">` });
       if (v && v.trim()) { c.name = v.trim(); await putC(c); refresh(); }
     } else if (action === 'view') {
-      await modal({ title: c.name, okText: 'Close', body: `<div class="cardlist"><p class="summary">${esc(c.summary || '')}</p>${c.cards.map(k => `<div class="cardrow"><b>${esc(k.front)}</b><span>${esc(k.back)}</span></div>`).join('')}</div>` });
+      await modal({ title: c.name, userTitle: true, okText: 'Close', body: `<div class="cardlist"><p class="summary">${esc(c.summary || '')}</p>${c.cards.map(k => `<div class="cardrow"><b>${esc(k.front)}</b><span>${esc(k.back)}</span></div>`).join('')}</div>` });
     } else if (action === 'delete') {
       const v = await modal({ title: `Delete "${c.name}"?`, okText: 'Delete', body: '<p>This cannot be undone.</p>' });
       if (v) { await delC(id); toast('Deleted'); refresh(); }
@@ -862,7 +857,7 @@
     const st = createState;
     app.innerHTML = `<section class="create">
       <h1>Create a study set</h1>
-      ${s.apiKey ? '' : '<div class="banner">No API key yet. Add your Claude API key in <a href="#settings">Settings</a> before generating.</div>'}
+      ${s.apiKey ? '' : `<div class="banner">${I('key')}<div>Notely makes sets with your own Claude API key. Add one in <a href="#settings">Settings</a>.</div></div>`}
 
       <label class="field"><span>Name <small>(optional, Claude will title it otherwise)</small></span>
         <input class="input" id="name" placeholder="e.g. Chapter 4 – Cell Division" value="${esc(st.name)}" maxlength="80"></label>
@@ -919,7 +914,7 @@
     const st = createState, s = settings(), u = currentUser();
     st.error = ''; st.errorKind = ''; st.errorLink = null;
     if (!st.files.length) { st.error = 'Add at least one photo of your notes.'; return renderCreate(); }
-    if (!s.apiKey) { st.error = 'Add your Claude API key in Settings first.'; return renderCreate(); }
+    if (!API.canGenerate(s.apiKey)) { st.error = 'Add your Claude API key in Settings first.'; st.errorKind = 'auth'; return renderCreate(); }
     st.busy = true; st.status = 'Compressing photos…'; renderCreate();
     try {
       const images = [];
@@ -957,7 +952,7 @@
   // Background: write the lecture with Claude, then generate its audio, right after a set is created.
   const prep = new Map(); // creation id -> { text }
   async function prepareLecture(c) {
-    if (prep.has(c.id)) return;
+    if (prep.has(c.id) || !I18N.lectureOK(c)) return; // lectures are read in English only for now
     prep.set(c.id, { text: 'Writing lecture…' });
     try {
       const s = settings();
@@ -999,7 +994,8 @@
         <button class="btn ghost danger" id="acc-delete">${I('trash')} Delete account</button>
       </div>
 
-      <h2>Claude</h2>
+      <h2>Claude API key</h2>
+      <p class="hint">Notely makes sets and lectures with your own key from console.anthropic.com. Anthropic bills you directly, usually a few cents per set.</p>
       <label class="field"><span>Claude API key</span>
         <div class="row nowrap"><input class="input" id="key" type="password" placeholder="sk-ant-…" value="${esc(s.apiKey || '')}" autocomplete="off"><button class="btn ghost" id="show" type="button">Show</button></div>
         <small>Stored only in this browser (localStorage) and sent only to api.anthropic.com. Get one at console.anthropic.com.</small></label>
@@ -1021,6 +1017,7 @@
       </details>
 
       <h2>Appearance</h2>
+      <div class="field"><span>Language</span>${I18N.selectHTML('boxed')}</div>
       <div class="field"><span>App theme</span>
         <div class="theme-row">${Object.entries(THEMES).map(([k, t]) => `<button type="button" class="theme-chip ${s.theme === k ? 'active' : ''}" data-theme-pick="${k}">${swatchHTML(t)}<span>${t.name}</span></button>`).join('')}</div></div>
       <div class="row"><button class="btn primary" id="save">Save settings</button></div>
@@ -1071,8 +1068,8 @@
       toast('Settings saved');
     };
     app.querySelector('#export').onclick = async () => {
-      const blob = new Blob([JSON.stringify({ notequest: 2, users: users(), creations: await Store.all() })], { type: 'application/json' });
-      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `notequest-${localDay()}.json`; a.click();
+      const blob = new Blob([JSON.stringify({ notely: 2, users: users(), creations: await Store.all() })], { type: 'application/json' });
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `notely-${localDay()}.json`; a.click();
     };
     app.querySelector('#import').onchange = async e => {
       try {
@@ -1115,6 +1112,7 @@
     const root = app.querySelector('#game');
     const u = currentUser();
     if (forceMode === 'lecture') {
+      if (!I18N.lectureOK(c)) { root.innerHTML = '<div class="empty small"><p>Lectures are only available for notes written in English for now. Flash cards, games and quizzes work in every language.</p></div>'; return; }
       const s = settings();
       cleanup = Lecture.render(root, c, {
         settings: s,
@@ -1124,7 +1122,7 @@
         done: r => onDone(c, r),
         confirm: (title, text) => modal({ title, okText: 'Rewrite', body: `<p>${esc(text)}</p>` }),
         exportForAudio: cc => {
-          const blob = new Blob([JSON.stringify({ notequest: 2, creations: [{ id: cc.id, name: cc.name, lecture: cc.lecture }] })], { type: 'application/json' });
+          const blob = new Blob([JSON.stringify({ notely: 2, creations: [{ id: cc.id, name: cc.name, lecture: cc.lecture }] })], { type: 'application/json' });
           const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
           a.download = `lecture-${cc.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'set'}.json`; a.click();
           toast('Downloaded. Run tools/make_audio.py on that file, then push the audio folder.', 5000);

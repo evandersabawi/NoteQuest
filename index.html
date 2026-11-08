@@ -3,16 +3,24 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>NoteQuest</title>
-<meta name="theme-color" content="#0f1020">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='1' y='1' width='22' height='22' rx='6' fill='%238b7cff'/%3E%3Cpath d='M13.5 5 8 13.5h4.2L10.5 19l5.5-8.5h-4.2z' fill='%23fff'/%3E%3C/svg%3E">
-<link rel="stylesheet" href="styles.css?v=19">
+<title>Notely</title>
+<meta name="description" content="Notely turns photos of your notes into flash cards, study games, quizzes and spoken lectures.">
+<meta property="og:title" content="Notely">
+<meta property="og:description" content="Turn photos of your notes into flash cards, study games, quizzes and spoken lectures.">
+<meta property="og:type" content="website">
+<link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+<meta name="theme-color" content="#121417">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='1' y='1' width='22' height='22' rx='6' fill='%238db4f2'/%3E%3Cpath d='M13.5 5 8 13.5h4.2L10.5 19l5.5-8.5h-4.2z' fill='%230d1828'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400&family=Source+Serif+4:opsz,wght@8..60,600&display=swap">
+<link rel="stylesheet" href="styles.css?v=20">
 </head>
 <body data-theme="midnight">
 <header class="topbar">
   <div class="top-left">
     <button class="icon-btn menu-btn" id="menuBtn" aria-label="Menu"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 12h16"/><path d="M4 6h16"/><path d="M4 18h16"/></svg></button>
-    <a href="#home" class="brand"><span class="brand-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="3"/><path d="M13.5 6 9 13h3.5L11 18l4.5-7H12z" fill="currentColor" stroke="none"/></svg></span>NoteQuest</a>
+    <a href="#home" class="brand"><span class="brand-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="3"/><path d="M13.5 6 9 13h3.5L11 18l4.5-7H12z" fill="currentColor" stroke="none"/></svg></span>Notely</a>
   </div>
   <div class="top-right" id="topRight"></div>
 </header>
@@ -30,7 +38,7 @@
       <span>Settings</span>
     </a>
   </aside>
-  <main id="app"><noscript>NoteQuest needs JavaScript enabled.</noscript></main>
+  <main id="app"><noscript>Notely needs JavaScript enabled.</noscript></main>
 </div>
 <div id="toast" class="toast" hidden></div>
 <div id="modal" class="modal" hidden></div>
@@ -38,17 +46,19 @@
   // Surface any startup error instead of a silent blank page.
   window.addEventListener('error', function (e) {
     var el = document.getElementById('app');
-    if (el) el.innerHTML = '<div class="error" style="margin:1rem">Something went wrong while loading NoteQuest:<br><code>' + (e.message || e) + '</code><br><small>Make sure the <b>js/</b> folder sits next to index.html.</small></div>';
+    if (el) el.innerHTML = '<div class="error" style="margin:1rem">Something went wrong while loading Notely:<br><code>' + (e.message || e) + '</code><br><small>Make sure the <b>js/</b> folder sits next to index.html.</small></div>';
   });
 </script>
+<script src="js/i18n.js?v=1"></script>
 <script src="js/icons.js?v=19"></script>
-<script src="js/store.js?v=19"></script>
-<script src="js/api.js?v=19"></script>
+<script src="js/store.js?v=20"></script>
+<script src="js/prompts.js?v=20"></script>
+<script src="js/api.js?v=20"></script>
 <script src="js/games.js?v=19"></script>
 <script src="js/audiogen.js?v=19"></script>
-<script src="js/lecture.js?v=19"></script>
+<script src="js/lecture.js?v=20"></script>
 <script src="js/firebase-config.js?v=19"></script>
 <script src="js/cloud.js?v=19"></script>
-<script src="js/app.js?v=19"></script>
+<script src="js/app.js?v=20"></script>
 </body>
 </html>
