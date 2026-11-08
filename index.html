@@ -4,6 +4,25 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Notely</title>
+<script>
+  // Light/Dark mode, set before the page draws so it never flashes the wrong colours.
+  // The choice is made in Settings > Appearance; until then Notely follows the device setting.
+  (function () {
+    var KEY = 'notely.appearance', mq = window.matchMedia ? matchMedia('(prefers-color-scheme: light)') : null;
+    function saved() { try { var v = localStorage.getItem(KEY); return v === 'light' || v === 'dark' ? v : null; } catch (e) { return null; } }
+    function current() { return saved() || (mq && mq.matches ? 'light' : 'dark'); }
+    function apply(m) {
+      document.documentElement.dataset.mode = m;
+      var tc = document.querySelector('meta[name="theme-color"]'); if (tc) tc.content = m === 'light' ? '#f5f7fa' : '#0f141c';
+    }
+    // People who had picked one of the old light themes (Candy, Paper) start in Light.
+    try { if (!saved() && /^(candy|paper)$/.test((JSON.parse(localStorage.getItem('notely.settings')) || {}).theme)) localStorage.setItem(KEY, 'light'); } catch (e) { /* ignore */ }
+    window.NotelyMode = { get: current, set: function (m) { try { localStorage.setItem(KEY, m); } catch (e) { /* private mode */ } apply(m); } };
+    apply(current());
+    document.addEventListener('DOMContentLoaded', function () { apply(current()); });
+    if (mq && mq.addEventListener) mq.addEventListener('change', function () { if (!saved()) apply(current()); });
+  })();
+</script>
 <meta name="description" content="Notely turns photos of your notes into flash cards, study games, quizzes and spoken lectures.">
 <meta property="og:title" content="Notely">
 <meta property="og:description" content="Turn photos of your notes into flash cards, study games, quizzes and spoken lectures.">
@@ -14,7 +33,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400&family=Source+Serif+4:opsz,wght@8..60,600&display=swap">
-<link rel="stylesheet" href="styles.css?v=20">
+<link rel="stylesheet" href="styles.css?v=21">
 </head>
 <body data-theme="midnight">
 <header class="topbar">
@@ -49,8 +68,8 @@
     if (el) el.innerHTML = '<div class="error" style="margin:1rem">Something went wrong while loading Notely:<br><code>' + (e.message || e) + '</code><br><small>Make sure the <b>js/</b> folder sits next to index.html.</small></div>';
   });
 </script>
-<script src="js/i18n.js?v=1"></script>
-<script src="js/icons.js?v=19"></script>
+<script src="js/i18n.js?v=2"></script>
+<script src="js/icons.js?v=20"></script>
 <script src="js/store.js?v=20"></script>
 <script src="js/prompts.js?v=20"></script>
 <script src="js/api.js?v=20"></script>
@@ -59,6 +78,6 @@
 <script src="js/lecture.js?v=20"></script>
 <script src="js/firebase-config.js?v=19"></script>
 <script src="js/cloud.js?v=19"></script>
-<script src="js/app.js?v=20"></script>
+<script src="js/app.js?v=21"></script>
 </body>
 </html>

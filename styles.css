@@ -1,6 +1,5 @@
 /* Notely styles.
-   Design rules: one dominant neutral, one accent per theme, status colours only for right/wrong.
-   Accent is spent on: the primary action, the active nav item, focus rings, progress fills, links.
+   Design rules: one dominant neutral, a blue accent with a little gold, status colours only for right/wrong.
    Surfaces are flat. Elevation (shadow) only on things that float: menus, modals, toasts. */
 
 /* ---------- tokens ---------- */
@@ -25,45 +24,25 @@
   --ease: cubic-bezier(.2, .7, .3, 1);
 }
 
-/* Themes: neutral ramp + one accent + two status colours. Keys are stored with each set, so they keep their old ids. */
-:root, [data-theme="midnight"] { /* Ink */
+/* One Notely colour scheme, matching the logo: sky blue is the accent, gold is a small second note.
+   Blue (--accent) is spent on: the primary action, the active nav item, focus rings, progress fills, links.
+   Gold (--gold) is only for reward moments: the XP bar, the end-of-game icon, the flash card answer edge.
+   Light/Dark is chosen in Settings > Appearance and set as data-mode on <html> (see the script in index.html). */
+:root {
   color-scheme: dark;
-  --bg: #121417; --surface: #1a1d21; --raised: #22262c; --line: #2c3138;
-  --text: #ebe8e2; --muted: #9b978f; --accent: #8db4f2; --on-accent: #0d1828; --accent-soft: rgba(141, 180, 242, .14);
+  --bg: #0f141c; --surface: #161d28; --raised: #1d2633; --line: #283344;
+  --text: #e7ecf3; --muted: #94a1b3; --accent: #6cb6f5; --on-accent: #06192c; --accent-soft: rgba(108, 182, 245, .14);
+  --gold: #f2c14e; --gold-soft: rgba(242, 193, 78, .14);
   --ok: #7fc79a; --bad: #e58a7f;
 }
-[data-theme="ocean"] { /* Harbor */
-  color-scheme: dark;
-  --bg: #0f1a21; --surface: #15232c; --raised: #1b2c37; --line: #24394a;
-  --text: #e3edf2; --muted: #8aa1ad; --accent: #5fbcc6; --on-accent: #06222a; --accent-soft: rgba(95, 188, 198, .14);
-  --ok: #7fc79a; --bad: #e58a7f;
-}
-[data-theme="forest"] {
-  color-scheme: dark;
-  --bg: #121a15; --surface: #18231c; --raised: #1e2b23; --line: #29382e;
-  --text: #e6ede7; --muted: #93a497; --accent: #8cc79a; --on-accent: #0c2214; --accent-soft: rgba(140, 199, 154, .14);
-  --ok: #8cc79a; --bad: #e0937a;
-}
-[data-theme="sunset"] { /* Dusk */
-  color-scheme: dark;
-  --bg: #1b1518; --surface: #241c20; --raised: #2c2227; --line: #3a2d33;
-  --text: #f1e7e9; --muted: #a8959a; --accent: #e8957a; --on-accent: #2a120b; --accent-soft: rgba(232, 149, 122, .15);
-  --ok: #8cc79a; --bad: #ef8f8f;
-}
-[data-theme="candy"] { /* Blossom */
+:root[data-mode="light"] {
   color-scheme: light;
-  --bg: #fbf7f8; --surface: #ffffff; --raised: #f5edf0; --line: #ebdde2;
-  --text: #2a1d22; --muted: #7a6369; --accent: #b83b65; --on-accent: #ffffff; --accent-soft: rgba(184, 59, 101, .09);
-  --ok: #2f7d4f; --bad: #b8402f;
-}
-[data-theme="paper"] {
-  color-scheme: light;
-  --bg: #f6f4ef; --surface: #ffffff; --raised: #efece5; --line: #e1ddd3;
-  --text: #1f1d1a; --muted: #6b665e; --accent: #a8481f; --on-accent: #ffffff; --accent-soft: rgba(168, 72, 31, .08);
+  --bg: #f5f7fa; --surface: #ffffff; --raised: #edf1f6; --line: #dce3ec;
+  --text: #15202f; --muted: #5c697c; --accent: #1f6fc2; --on-accent: #ffffff; --accent-soft: rgba(31, 111, 194, .09);
+  --gold: #c99510; --gold-soft: rgba(201, 149, 16, .12);
   --ok: #2f7d4f; --bad: #b3372c;
-  --elev: 0 1px 2px rgba(40, 30, 10, .06), 0 8px 24px rgba(40, 30, 10, .1);
+  --elev: 0 1px 2px rgba(15, 30, 50, .06), 0 8px 24px rgba(15, 30, 50, .1);
 }
-[data-theme="candy"] { --elev: 0 1px 2px rgba(60, 20, 30, .06), 0 8px 24px rgba(60, 20, 30, .1); }
 
 /* ---------- base ---------- */
 *, *::before, *::after { box-sizing: border-box; }
@@ -321,12 +300,14 @@ select.input { cursor: pointer; }
 .mode-icon .ico { width: 20px; height: 20px; color: var(--muted); }
 .mode-card.active .mode-icon .ico { color: var(--accent); }
 .theme-row { display: flex; flex-wrap: wrap; gap: var(--s2); }
-.theme-chip { display: inline-flex; align-items: center; gap: var(--s2); padding: 6px var(--s3) 6px 8px; border-radius: var(--r-pill); border: 1px solid var(--line); background: transparent; font-size: var(--fs-sm); font-weight: 500; }
-.theme-chip:hover { background: var(--surface); }
-.theme-chip.active { border-color: var(--accent); background: var(--accent-soft); }
-.swatch { display: inline-flex; }
-.swatch i { width: 14px; height: 14px; border-radius: 50%; display: inline-block; border: 1px solid rgba(128, 128, 128, .35); }
-.swatch i + i { margin-left: -4px; }
+/* Light/Dark switch in Settings > Appearance */
+.mode-switch { display: inline-flex; padding: 3px; gap: 2px; border: 1px solid var(--line); border-radius: var(--r-pill); }
+.mode-switch button { display: inline-flex; align-items: center; gap: 6px; padding: 6px var(--s4); border: 0; border-radius: var(--r-pill); background: transparent; color: var(--muted); font-size: var(--fs-sm); font-weight: 500; }
+.mode-switch button:hover { color: var(--text); }
+.mode-switch button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); }
+.mode-switch .ico { width: 16px; height: 16px; }
+/* The logo's near-black cap gets a faint light rim in dark mode only (the rim itself is set on .logo-img). */
+:root[data-mode="light"] .logo-img { filter: none; }
 .free-note { display: flex; align-items: center; gap: var(--s2); font-size: var(--fs-sm); color: var(--muted); margin-top: var(--s3); }
 .free-note .ico { width: 16px; height: 16px; }
 
@@ -374,7 +355,8 @@ select.input { cursor: pointer; }
 .level-row { display: flex; align-items: center; gap: var(--s3); margin-top: var(--s2); font-size: var(--fs-sm); color: var(--muted); }
 .level-row b { color: var(--text); font-weight: 600; }
 .xpbar { flex: 1; max-width: 200px; height: 6px; background: var(--line); border-radius: var(--r-pill); overflow: hidden; }
-.xpbar i { display: block; height: 100%; background: var(--accent); }
+.xpbar i { display: block; height: 100%; background: var(--gold); }
+.ico.gold { color: var(--gold); }
 .stat-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); margin: 0; border-top: 1px solid var(--line); }
 .stat-list > div { padding: var(--s4) var(--s4) var(--s4) 0; border-bottom: 1px solid var(--line); }
 .stat-list dt { font-size: var(--fs-xs); color: var(--muted); display: flex; align-items: center; gap: 6px; }
@@ -461,7 +443,7 @@ svg.avatar.xl { width: 80px; height: 80px; }
 .fc-face small { position: absolute; top: var(--s4); left: var(--s5); letter-spacing: .08em; font-weight: 600; text-transform: uppercase; }
 .fc-face p { font-family: var(--font-display); font-size: var(--fs-xl); font-weight: 600; margin: 0; line-height: 1.35; overflow-wrap: anywhere; }
 .fc-face em { position: absolute; bottom: var(--s4); color: var(--muted); font-size: var(--fs-xs); font-style: normal; }
-.fc-back { transform: rotateY(180deg); border-top: 3px solid var(--accent); }
+.fc-back { transform: rotateY(180deg); border-top: 3px solid var(--gold); }
 .fc-back small { color: var(--accent); }
 
 /* notemon */
@@ -499,7 +481,7 @@ svg.avatar.xl { width: 80px; height: 80px; }
 /* end screen */
 .end { text-align: center; padding: var(--s6) var(--s4); animation: pop .25s var(--ease); }
 .end h2 { font-size: var(--fs-2xl); margin-top: var(--s2); }
-.end-ico .ico { width: 36px; height: 36px; color: var(--accent); }
+.end-ico .ico { width: 36px; height: 36px; color: var(--gold); }
 .stat-row { display: flex; justify-content: center; gap: var(--s6); margin: var(--s5) 0; flex-wrap: wrap; }
 .stat { display: flex; flex-direction: column; }
 .stat b { font-family: var(--font-display); font-size: var(--fs-2xl); font-weight: 600; font-variant-numeric: tabular-nums; }

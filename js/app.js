@@ -10,18 +10,10 @@
     match:   { name: 'Match',       icon: 'grid',   desc: 'Memory game: pair terms with their answers.' },
     blitz:   { name: 'Blitz',       icon: 'zap',    desc: '60-second speed round with streak multipliers.' },
   };
-  const THEMES = {
-    midnight: { name: 'Midnight', swatch: ['#121417', '#8db4f2'] },
-    ocean:    { name: 'Ocean',    swatch: ['#0f1a21', '#5fbcc6'] },
-    forest:   { name: 'Forest',   swatch: ['#121a15', '#8cc79a'] },
-    sunset:   { name: 'Sunset',   swatch: ['#1b1518', '#e8957a'] },
-    candy:    { name: 'Candy',    swatch: ['#fbf7f8', '#b83b65'] },
-    paper:    { name: 'Paper',    swatch: ['#f6f4ef', '#a8481f'] },
-  };
   const MODELS = API.MODELS; // models for people who bring their own key (js/api.js)
   const COLORS = ['#8db4f2', '#5fbcc6', '#8cc79a', '#e8957a', '#c9839e', '#d9b86c', '#7fb8a4', '#d98a8a', '#a7b97a', '#d3a07a', '#8a9fd1', '#a993c9'];
 
-  const settings = () => Object.assign({ model: API.DEFAULT_MODEL, theme: 'midnight' }, Store.settings.get());
+  const settings = () => Object.assign({ model: API.DEFAULT_MODEL }, Store.settings.get());
   const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2));
   const localDay = (d = new Date()) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   const rnd = n => Math.floor(Math.random() * n);
@@ -99,9 +91,7 @@
     t.textContent = msg; t.hidden = false;
     clearTimeout(toastTimer); toastTimer = setTimeout(() => t.hidden = true, ms);
   }
-  function applyTheme(t) { document.body.dataset.theme = THEMES[t] ? t : 'midnight'; }
   function setNav(name) { document.querySelectorAll('[data-nav]').forEach(a => a.classList.toggle('active', a.dataset.nav === name)); }
-  const swatchHTML = t => `<span class="swatch">${t.swatch.map(col => `<i style="background:${col}"></i>`).join('')}</span>`;
 
   // Simple modal: resolves with the chosen value, input text, true (OK) or null (cancel).
   function modal({ title, body, options, current, okText = 'OK', onOpen, userTitle = false }) {
@@ -201,19 +191,19 @@
     renderChrome();
     const u = currentUser();
     if (!u) {
-      applyTheme(settings().theme); setNav('');
+      setNav('');
       return renderAuth(path === 'signup' ? 'signup' : 'login');
     }
     switch (path) {
       case 'login': return renderAuth('login');
       case 'signup': return renderAuth('signup');
-      case 'creations': applyTheme(settings().theme); setNav('creations'); return renderCreations();
-      case 'create': applyTheme(createState.theme); setNav('create'); return renderCreate();
-      case 'settings': applyTheme(settings().theme); setNav('settings'); return renderSettings();
+      case 'creations': setNav('creations'); return renderCreations();
+      case 'create': setNav('create'); return renderCreate();
+      case 'settings': setNav('settings'); return renderSettings();
       case 'study': setNav(''); return renderPlay(id, null);
       case 'quiz': setNav(''); return renderPlay(id, 'quiz');
       case 'lecture': setNav(''); return renderPlay(id, 'lecture');
-      default: applyTheme(settings().theme); setNav('home'); return renderHome();
+      default: setNav('home'); return renderHome();
     }
   }
   window.addEventListener('hashchange', route);
@@ -745,7 +735,7 @@
       </div>
 
       <h2 class="section-label">Your stats</h2>
-      <dl class="stat-list">${stats.map(([i, v, l]) => `<div><dt>${I(i)} ${esc(l)}</dt><dd>${esc(v)}</dd></div>`).join('')}</dl>
+      <dl class="stat-list">${stats.map(([i, v, l]) => `<div><dt>${I(i, i === 'flame' && v > 0 ? 'gold' : '')} ${esc(l)}</dt><dd>${esc(v)}</dd></div>`).join('')}</dl>
 
       <div class="section-head"><h2>Recent notes</h2>${list.length ? `<a href="#creations">See all ${I('arrowRight')}</a>` : ''}</div>
       ${list.length ? `<div class="grid">${list.slice(0, 4).map(tileHTML).join('')}</div>`
@@ -802,7 +792,7 @@
     const prepping = prep.get(c.id);
     const lectureNote = prepping ? `<span class="tile-prep"><span class="spinner"></span> ${esc(prepping.text)}</span>` : (c.lecture ? `<span class="tile-prep ok">${I('check')} Lecture ready</span>` : '');
     const cover = c.cover ? `style="background-image:url(${c.cover})"` : '';
-    return `<article class="tile" data-theme="${esc(c.theme)}">
+    return `<article class="tile">
       <div class="tile-cover" ${cover}>${c.cover ? '' : I('book')}</div>
       <div class="tile-body">
         <span class="tile-kicker">${I(m.icon)} ${esc(m.name)}</span>
@@ -810,7 +800,6 @@
           <h2>${esc(c.name)}</h2>
           <details class="menu"><summary aria-label="More">${I('more')}</summary><div class="menu-list">
             <button data-action="mode" data-id="${c.id}">${I('gamepad')} Change game mode</button>
-            <button data-action="theme" data-id="${c.id}">${I('palette')} Change theme</button>
             <button data-action="rename" data-id="${c.id}">${I('pencil')} Rename</button>
             <button data-action="view" data-id="${c.id}">${I('layers')} View cards</button>
             <button data-action="delete" data-id="${c.id}" class="danger">${I('trash')} Delete</button>
@@ -835,9 +824,6 @@
     if (action === 'mode') {
       const v = await modal({ title: 'Game mode', current: c.mode, options: Object.entries(MODES).map(([k, m]) => ({ value: k, label: m.name, desc: m.desc, icon: I(m.icon) })) });
       if (v) { c.mode = v; await putC(c); refresh(); }
-    } else if (action === 'theme') {
-      const v = await modal({ title: 'Theme', current: c.theme, options: Object.entries(THEMES).map(([k, t]) => ({ value: k, label: t.name, icon: swatchHTML(t) })) });
-      if (v) { c.theme = v; await putC(c); refresh(); }
     } else if (action === 'rename') {
       const v = await modal({ title: 'Rename', okText: 'Save', body: `<input class="input" value="${esc(c.name)}" maxlength="80">` });
       if (v && v.trim()) { c.name = v.trim(); await putC(c); refresh(); }
@@ -850,7 +836,7 @@
   }
 
   // ---------- Create ----------
-  const createState = { name: '', files: [], mode: 'flash', theme: settings().theme, busy: false, status: '', error: '', errorKind: '', errorLink: null };
+  const createState = { name: '', files: [], mode: 'flash', busy: false, status: '', error: '', errorKind: '', errorLink: null };
 
   function renderCreate() {
     const s = settings();
@@ -876,11 +862,6 @@
           <button type="button" class="mode-card ${st.mode === k ? 'active' : ''}" data-mode="${k}"><span class="mode-icon">${I(m.icon)}</span><b>${m.name}</b><small>${m.desc}</small></button>`).join('')}</div>
       </div>
 
-      <div class="field"><span>Theme</span>
-        <div class="theme-row">${Object.entries(THEMES).map(([k, t]) => `
-          <button type="button" class="theme-chip ${st.theme === k ? 'active' : ''}" data-theme-pick="${k}">${swatchHTML(t)}<span>${t.name}</span></button>`).join('')}</div>
-      </div>
-
       <div class="error ${st.errorKind === 'credits' ? 'credits' : ''}" id="error" ${st.error ? '' : 'hidden'}>${st.errorKind === 'credits' ? I('key') : ''}<div>${esc(st.error)}${st.errorLink ? ` <a class="btn primary small" href="${esc(st.errorLink)}" target="_blank" rel="noopener">Add credits</a>` : ''}${st.errorKind === 'auth' ? ' <a class="btn ghost small" href="#settings">Open Settings</a>' : ''}</div></div>
       <div class="row">
         <button class="btn primary big" id="go" ${st.busy ? 'disabled' : ''}>${st.busy ? '<span class="spinner"></span> ' + esc(st.status || 'Working…') : I('sparkles') + ' Generate with Claude'}</button>
@@ -897,7 +878,6 @@
     drop.ondragleave = () => drop.classList.remove('over');
     drop.ondrop = e => { e.preventDefault(); drop.classList.remove('over'); addFiles(e.dataTransfer.files); };
     app.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => { st.mode = b.dataset.mode; app.querySelectorAll('[data-mode]').forEach(x => x.classList.toggle('active', x === b)); });
-    app.querySelectorAll('[data-theme-pick]').forEach(b => b.onclick = () => { st.theme = b.dataset.themePick; applyTheme(st.theme); app.querySelectorAll('[data-theme-pick]').forEach(x => x.classList.toggle('active', x === b)); });
     app.querySelector('#go').onclick = generate;
     renderPreviews();
   }
@@ -922,7 +902,7 @@
       const cover = await API.thumbnail(st.files[0]);
       st.status = 'Reading your notes with Claude… (this can take a minute)'; renderCreate();
       const r = await API.generate({ images, name: st.name.trim(), mode: st.mode, apiKey: s.apiKey, model: s.model, onStatus: m => { st.status = m; renderCreate(); } });
-      const c = sanitize(r, { name: st.name.trim(), mode: st.mode, theme: st.theme, cover, owner: u.id });
+      const c = sanitize(r, { name: st.name.trim(), mode: st.mode, cover, owner: u.id });
       await putC(c);
       u.stats.xp += 25; saveUser(u);
       st.files = []; st.name = ''; st.busy = false; st.status = '';
@@ -944,7 +924,7 @@
       id: uid(), createdAt: Date.now(), owner: meta.owner,
       name: meta.name || r.title || 'Untitled notes',
       subject: r.subject || '', summary: r.summary || '',
-      mode: meta.mode, theme: meta.theme, cover: meta.cover,
+      mode: meta.mode, cover: meta.cover,
       cards, questions, monsters, stats: {}, model: r._model,
     };
   }
@@ -1018,8 +998,8 @@
 
       <h2>Appearance</h2>
       <div class="field"><span>Language</span>${I18N.selectHTML('boxed')}</div>
-      <div class="field"><span>App theme</span>
-        <div class="theme-row">${Object.entries(THEMES).map(([k, t]) => `<button type="button" class="theme-chip ${s.theme === k ? 'active' : ''}" data-theme-pick="${k}">${swatchHTML(t)}<span>${t.name}</span></button>`).join('')}</div></div>
+      <div class="field"><span>Color mode</span>
+        <div class="mode-switch" role="group" aria-label="Color mode">${[['light', 'sun', 'Light'], ['dark', 'moon', 'Dark']].map(([v, ic, l]) => `<button type="button" data-color-mode="${v}" aria-pressed="${NotelyMode.get() === v}">${I(ic)} ${l}</button>`).join('')}</div></div>
       <div class="row"><button class="btn primary" id="save">Save settings</button></div>
 
       <h2>Data</h2>
@@ -1058,13 +1038,12 @@
     AudioGen.helperHealth(true).then(h => { const el = app.querySelector('#helper-status'); if (el) el.textContent = h ? `Helper is running (voice ${h.voice}, ${h.clips} clips on disk).` : 'Helper not running. That is fine: audio is made in the browser instead.'; });
     const key = app.querySelector('#key');
     app.querySelector('#show').onclick = e => { key.type = key.type === 'password' ? 'text' : 'password'; e.target.textContent = key.type === 'password' ? 'Show' : 'Hide'; };
-    let theme = s.theme;
-    app.querySelectorAll('[data-theme-pick]').forEach(b => b.onclick = () => { theme = b.dataset.themePick; applyTheme(theme); app.querySelectorAll('[data-theme-pick]').forEach(x => x.classList.toggle('active', x === b)); });
+    // Light/Dark applies and is remembered right away (localStorage notely.appearance, see index.html).
+    app.querySelectorAll('[data-color-mode]').forEach(b => b.onclick = () => { NotelyMode.set(b.dataset.colorMode); app.querySelectorAll('[data-color-mode]').forEach(x => x.setAttribute('aria-pressed', x === b)); });
     app.querySelector('#save').onclick = () => {
-      Store.settings.update({ apiKey: key.value.trim(), model: app.querySelector('#model').value, theme,
+      Store.settings.update({ apiKey: key.value.trim(), model: app.querySelector('#model').value,
         autoLecture: app.querySelector('#autoLecture').checked, audioGpu: app.querySelector('#audioGpu').checked, kokoroVoice: app.querySelector('#kokoroVoice').value,
         audioEngine: app.querySelector('#audioEngine').value, helperUrl: app.querySelector('#helperUrl').value.trim() || 'http://localhost:8788' });
-      createState.theme = theme;
       toast('Settings saved');
     };
     app.querySelector('#export').onclick = async () => {
@@ -1092,7 +1071,6 @@
   async function renderPlay(id, forceMode) {
     const c = await Store.get(id);
     if (!c) { app.innerHTML = `<section class="empty"><p>That set no longer exists.</p><a class="btn primary" href="#creations">Back</a></section>`; return; }
-    applyTheme(c.theme);
     const modeKey = forceMode || (Games[c.mode] ? c.mode : 'flash');
     const m = forceMode === 'quiz' ? { name: 'Quiz', icon: 'quiz' } : forceMode === 'lecture' ? { name: 'Lecture', icon: 'lecture' } : MODES[modeKey];
     app.innerHTML = `<section class="play">
@@ -1146,7 +1124,7 @@
       lecture,
       id: 'sample-' + uid(), createdAt: Date.now(), owner: u ? u.id : undefined, name: 'Photosynthesis (sample)', subject: 'Biology – Plant Processes',
       summary: 'Photosynthesis converts light energy into chemical energy stored in glucose. It happens in chloroplasts and has two stages: the light-dependent reactions and the Calvin cycle.',
-      mode: 'notemon', theme: 'forest', cover: null, stats: {},
+      mode: 'notemon', cover: null, stats: {},
       cards: [
         { front: 'Where does photosynthesis take place?', back: 'In the chloroplasts' },
         { front: 'Overall equation for photosynthesis', back: '6CO₂ + 6H₂O + light → C₆H₁₂O₆ + 6O₂' },
