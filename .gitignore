@@ -2,3 +2,8 @@
 *.zip
 tools/.venv/
 tools/_work/
+__pycache__/
+*.pyc
+.DS_Store
+Thumbs.db
+node_modules/

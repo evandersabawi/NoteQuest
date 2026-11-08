@@ -42,7 +42,7 @@
   }
   // Creations: local store first, then the cloud copy (without audio blobs) when signed in to a cloud account.
   // Deleted sets leave a marker behind, so a late save or a sync from another device cannot bring them back.
-  const DELKEY = 'notequest.deleted';
+  const DELKEY = 'notely.deleted';
   const deletedIds = () => { try { return new Set(JSON.parse(localStorage.getItem(DELKEY) || '[]')); } catch (e) { return new Set(); } };
   const markDeleted = (id, on) => { const s = deletedIds(); if (on) s.add(id); else s.delete(id); try { localStorage.setItem(DELKEY, JSON.stringify([...s].slice(-1000))); } catch (e) { /* ignore */ } };
   async function putC(c) { if (deletedIds().has(c.id)) return; c.updatedAt = Date.now(); await Store.put(c); const me = Cloud.enabled() && Cloud.profile(); if (me && c.owner === me.id) Cloud.pushCreation(c); }
@@ -429,7 +429,7 @@
       const u = newUser(name, avatar);
       await Auth.setPassword(u, app.querySelector('#new').value);
       await Auth.setRecovery(u, app.querySelector('#q').value, ans);
-      finishLogin(u, app.querySelector('#stay').checked, `Welcome to NoteQuest, ${u.name}.`);
+      finishLogin(u, app.querySelector('#stay').checked, `Welcome to Notely, ${u.name}.`);
     };
   }
 
@@ -500,7 +500,7 @@
       try {
         const p = await Cloud.signUp({ username: name, email, password: app.querySelector('#new').value, avatar, securityQ: app.querySelector('#q').value, securityA: ans, stay: app.querySelector('#stay').checked, newUser });
         await adoptLocalSets(p);
-        toast(`Welcome to NoteQuest, ${p.name}.`); location.hash = '#home'; route();
+        toast(`Welcome to Notely, ${p.name}.`); location.hash = '#home'; route();
       } catch (err) { btn.disabled = false; btn.innerHTML = 'Create account'; showErr(app, err.message); }
     };
   }
@@ -669,8 +669,8 @@
   }
   function exportAccount(u) {
     Store.all().then(all => {
-      const blob = new Blob([JSON.stringify({ notequest: 2, users: [u], creations: mine(all, u).map(c => { const { audioClips, ...rest } = c; return rest; }) })], { type: 'application/json' });
-      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `notequest-account-${u.name}.json`; a.click();
+      const blob = new Blob([JSON.stringify({ notely: 2, users: [u], creations: mine(all, u).map(c => { const { audioClips, ...rest } = c; return rest; }) })], { type: 'application/json' });
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `notely-account-${u.name}.json`; a.click();
       toast('Account file downloaded. Import it on the other device from the log-in screen.', 5000);
     });
   }
@@ -1071,8 +1071,8 @@
       toast('Settings saved');
     };
     app.querySelector('#export').onclick = async () => {
-      const blob = new Blob([JSON.stringify({ notequest: 2, users: users(), creations: await Store.all() })], { type: 'application/json' });
-      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `notequest-${localDay()}.json`; a.click();
+      const blob = new Blob([JSON.stringify({ notely: 2, users: users(), creations: await Store.all() })], { type: 'application/json' });
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `notely-${localDay()}.json`; a.click();
     };
     app.querySelector('#import').onchange = async e => {
       try {
@@ -1124,7 +1124,7 @@
         done: r => onDone(c, r),
         confirm: (title, text) => modal({ title, okText: 'Rewrite', body: `<p>${esc(text)}</p>` }),
         exportForAudio: cc => {
-          const blob = new Blob([JSON.stringify({ notequest: 2, creations: [{ id: cc.id, name: cc.name, lecture: cc.lecture }] })], { type: 'application/json' });
+          const blob = new Blob([JSON.stringify({ notely: 2, creations: [{ id: cc.id, name: cc.name, lecture: cc.lecture }] })], { type: 'application/json' });
           const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
           a.download = `lecture-${cc.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'set'}.json`; a.click();
           toast('Downloaded. Run tools/make_audio.py on that file, then push the audio folder.', 5000);
