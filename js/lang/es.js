@@ -113,7 +113,7 @@ I18N.register('es', {
   "Username must be 2–24 characters: letters, numbers, dots, dashes or underscores.": "El nombre de usuario debe tener 2–24 caracteres: letras, números, puntos, guiones o guiones bajos.",
   "That username is already taken on this device.": "Ese nombre de usuario ya está en uso en este dispositivo.",
   "Welcome to Notely, {name}.": "Te damos la bienvenida a Notely, {name}.",
-  "Welcome to NoteQuest, {name}.": "Te damos la bienvenida a NoteQuest, {name}.",
+  "Welcome to Notely, {name}.": "Te damos la bienvenida a Notely, {name}.",
   "Log in with your username (or email) and password. Your account works on every device.": "Inicia sesión con tu nombre de usuario (o correo) y contraseña. Tu cuenta funciona en todos tus dispositivos.",
   "Username or email": "Usuario o correo",
   "Enter your username.": "Escribe tu nombre de usuario.",

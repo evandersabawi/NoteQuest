@@ -113,7 +113,7 @@ I18N.register('ja', {
   "Username must be 2–24 characters: letters, numbers, dots, dashes or underscores.": "ユーザー名は2〜24文字で、英字・数字・ドット・ハイフン・アンダースコアが使えます。",
   "That username is already taken on this device.": "このユーザー名はこの端末ですでに使われています。",
   "Welcome to Notely, {name}.": "Notely へようこそ、{name}。",
-  "Welcome to NoteQuest, {name}.": "NoteQuest へようこそ、{name}。",
+  "Welcome to Notely, {name}.": "Notely へようこそ、{name}。",
   "Log in with your username (or email) and password. Your account works on every device.": "ユーザー名（またはメールアドレス）とパスワードでログインしてください。アカウントはどの端末でも使えます。",
   "Username or email": "ユーザー名またはメールアドレス",
   "Enter your username.": "ユーザー名を入力してください。",

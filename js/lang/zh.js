@@ -113,7 +113,7 @@ I18N.register('zh', {
   "Username must be 2–24 characters: letters, numbers, dots, dashes or underscores.": "用户名须为 2–24 个字符：字母、数字、点、连字符或下划线。",
   "That username is already taken on this device.": "此设备上已有人使用这个用户名。",
   "Welcome to Notely, {name}.": "欢迎来到 Notely，{name}。",
-  "Welcome to NoteQuest, {name}.": "欢迎来到 NoteQuest，{name}。",
+  "Welcome to Notely, {name}.": "欢迎来到 Notely，{name}。",
   "Log in with your username (or email) and password. Your account works on every device.": "使用用户名（或邮箱）和密码登录。你的账户在所有设备上都能用。",
   "Username or email": "用户名或邮箱",
   "Enter your username.": "请输入用户名。",
