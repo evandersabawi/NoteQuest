@@ -566,20 +566,3 @@ svg.avatar.xl { width: 80px; height: 80px; }
   .play-head { grid-template-columns: auto 1fr auto; }
   .play-head .btn span.lbl { display: none; }
 }
-
-/* ---------- plans (Settings) ---------- */
-.plan-now { display: flex; flex-direction: column; gap: var(--s2); margin: var(--s3) 0 var(--s4); }
-.plan-now b { font-weight: 600; }
-.plan-meter { display: block; max-width: 320px; height: 6px; background: var(--line); border-radius: var(--r-pill); overflow: hidden; }
-.plan-meter i { display: block; height: 100%; background: var(--accent); }
-.plan-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--s3); }
-.plan-option { display: flex; flex-direction: column; gap: var(--s2); padding: var(--s4); border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--surface); }
-.plan-option.current { border-color: var(--accent); }
-.plan-option p { margin: 0; color: var(--muted); font-size: var(--fs-sm); }
-.plan-option .btn { align-self: flex-start; margin-top: auto; }
-.plan-name { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s2); }
-.plan-name > b { font-family: var(--font-display); font-size: var(--fs-lg); font-weight: 600; }
-.plan-name span { color: var(--muted); font-size: var(--fs-sm); }
-.plan-name span b { color: var(--text); font-weight: 600; }
-.plan-tag { display: inline-flex; align-items: center; gap: 6px; margin-top: auto; font-size: var(--fs-sm); font-weight: 600; color: var(--accent); }
-.plan-tag .ico { width: 14px; height: 14px; }

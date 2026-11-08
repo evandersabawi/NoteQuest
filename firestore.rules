@@ -14,12 +14,6 @@ service cloud.firestore {
       allow create: if request.auth != null && request.resource.data.uid == request.auth.uid;
       allow update, delete: if request.auth != null && resource.data.uid == request.auth.uid;
     }
-    // Plan and monthly usage. Only the Cloud Functions write here (the Admin SDK skips these rules).
-    match /billing/{uid} {
-      allow read: if request.auth != null && request.auth.uid == uid;
-      allow write: if false;
-    }
-    // usage/{id}: per-request token log, server only. No rule means no client access.
     // Security-question recovery: the account password sealed with a key derived from the answer.
     match /recovery/{name} {
       allow read: if true;

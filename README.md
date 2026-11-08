@@ -39,17 +39,13 @@ Run it from the repository root, then open http://localhost:8765. Use a server r
 ## First use
 
 1. Sign up with a username, password, security question and an avatar (all stored on this device only). Untick "Stay signed in" to be logged out when the tab closes.
-2. Optional: open Settings (gear icon at the bottom of the sidebar) and paste your own Claude API key from https://console.anthropic.com. Without a key, generation runs through a Notely plan (see below). The key is stored only in your browser's localStorage and is sent only to `api.anthropic.com`. It is never in the repo.
+2. Open Settings (gear icon at the bottom of the sidebar) and paste a Claude API key from https://console.anthropic.com. The key is stored only in your browser's localStorage and is sent only to `api.anthropic.com`. It is never in the repo.
 3. Go to Create, add photos of your notes, choose a game mode and theme, and press Generate.
 4. Your new set appears on the Creations page with Study, Quiz and Lecture buttons. Lecture writes a spoken lecture the first time you open it (text only, a few cents) and then reads it aloud with word-by-word highlighting; you can change speed and voice, click any sentence to jump, or have Claude rewrite it.
 
 Use "Load a sample" on the Home screen (or in Settings) to try the games without an API key.
 
 If you see only the header bar, check that the `js` folder sits next to `index.html` and that you are serving the folder over http.
-
-## Plans (no API key needed)
-
-New accounts get a few free sets, then a Study or Study+ plan covers generation through Notely's own backend. Bringing your own Claude API key stays free. Setup for the backend and payments: [docs/plans-setup.md](docs/plans-setup.md).
 
 ## Notes
 

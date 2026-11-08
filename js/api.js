@@ -1,5 +1,5 @@
-// Generation. With the user's own Claude API key the browser calls the Claude API directly; without one,
-// signed-in users go through Notely's hosted plans (js/billing.js -> functions/). Prompts live in js/prompts.js.
+// Generation. The browser calls the Claude API directly with the user's own key (no backend).
+// Prompts live in js/prompts.js.
 // Also contains client-side image compression helpers.
 const API = (() => {
   const ENDPOINT = 'https://api.anthropic.com/v1/messages';
@@ -82,22 +82,20 @@ const API = (() => {
     return parsed;
   }
 
-  // Photos of notes -> study set. No own key: the hosted plan does it.
+  // Photos of notes -> study set.
   async function generate({ images, name, mode, apiKey, model: m, onStatus }) {
     if (!images.length) throw new Error('Add at least one photo of your notes.');
-    if (!apiKey) return Billing.generateSet({ images, name, mode, onStatus });
     onStatus && onStatus('Reading your notes with Claude…');
     return request({ apiKey, model: m, system: SYSTEM, content: Prompts.setContent(images, name, mode), schema: SCHEMA });
   }
 
   // Study set -> spoken lecture script (text only, no photos needed).
   async function lecture({ creation, apiKey, model: m }) {
-    if (!apiKey) return Billing.generateLecture({ creation });
     return request({ apiKey, model: m, system: LECTURE_SYSTEM, content: Prompts.lectureContent(creation), schema: LECTURE_SCHEMA, maxTokens: 8000, effort: 'medium' });
   }
 
-  // Can this user generate at all? Own key, or a cloud account for the hosted plan.
-  const canGenerate = apiKey => !!apiKey || Billing.signedIn();
+  // Can this user generate at all? Needs their own Claude API key.
+  const canGenerate = apiKey => !!apiKey;
 
   // ---------- image helpers ----------
   async function loadBitmap(file) {
