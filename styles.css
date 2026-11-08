@@ -99,8 +99,11 @@ img, svg { display: inline-block; }
 .top-left, .top-right { display: flex; align-items: center; gap: var(--s2); }
 .brand { display: inline-flex; align-items: center; gap: var(--s2); color: var(--text); font-family: var(--font-display); font-weight: 600; font-size: var(--fs-xl); letter-spacing: -.02em; }
 .brand:hover { text-decoration: none; }
-.brand-mark { display: inline-flex; color: var(--accent); }
-.brand-mark svg { width: 22px; height: 22px; }
+.brand-mark { display: inline-flex; }
+.brand-mark img { width: 28px; height: 28px; }
+/* The logo's cap is near-black, so dark themes give it a faint light rim to keep its outline readable. */
+.logo-img { display: block; filter: drop-shadow(0 0 1px rgba(255, 255, 255, .35)); }
+[data-theme="candy"] .logo-img, [data-theme="paper"] .logo-img { filter: none; }
 
 /* language picker */
 .lang-pick { position: relative; display: inline-flex; align-items: center; color: var(--muted); }
@@ -336,8 +339,8 @@ select.input { cursor: pointer; }
 .auth-card > h1 { margin-top: var(--s2); }
 .auth-card > .hint { margin-bottom: var(--s2); }
 .auth-card .field { width: 100%; text-align: start; }
-.auth-logo { display: inline-flex; color: var(--accent); }
-.auth-logo .ico { width: 36px; height: 36px; }
+.auth-logo { display: inline-flex; }
+.auth-logo img { width: 56px; height: 56px; }
 .auth-form { width: 100%; display: flex; flex-direction: column; text-align: start; }
 .auth-form .field { margin: var(--s2) 0; }
 .auth-form .btn.wide { margin-top: var(--s2); }
