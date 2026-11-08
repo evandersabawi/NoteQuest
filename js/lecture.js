@@ -79,7 +79,7 @@ const Lecture = (() => {
         <div class="lec-controls">
           <button class="btn primary" id="play">${I('play')} Play</button>
           <button class="btn ghost" id="restart" title="Restart">${I('skipBack')}</button>
-          <label class="lec-sel">${I('timer')}<select class="input" id="rate">${SPEEDS.map(([v, l]) => `<option value="${v}" ${v === st.rate ? 'selected' : ''}>${l} (${v}x)</option>`).join('')}</select></label>
+          <label class="lec-sel">${I('timer')}<select class="input" id="rate">${SPEEDS.map(([v, l]) => `<option value="${v}" ${v === st.rate ? 'selected' : ''}>${l} · ${v}x</option>`).join('')}</select></label>
           <label class="lec-sel" id="voice-wrap">${I('volume')}<select class="input" id="voice"></select></label>
           <button class="btn ghost" id="regen" title="Rewrite the lecture with Claude">${I('switch')} Rewrite</button>
         </div>

@@ -1,107 +1,20 @@
-// Talks to the Claude API directly from the browser (no backend).
+// Generation. With the user's own Claude API key the browser calls the Claude API directly; without one,
+// signed-in users go through Notely's hosted plans (js/billing.js -> functions/). Prompts live in js/prompts.js.
 // Also contains client-side image compression helpers.
 const API = (() => {
   const ENDPOINT = 'https://api.anthropic.com/v1/messages';
+  const { SCHEMA, SYSTEM, LECTURE_SCHEMA, LECTURE_SYSTEM } = Prompts;
 
-  const SCHEMA = {
-    type: 'object',
-    additionalProperties: false,
-    required: ['title', 'subject', 'summary', 'cards', 'questions', 'monsters'],
-    properties: {
-      title: { type: 'string', description: 'Short title for this set of notes (2-6 words).' },
-      subject: { type: 'string', description: 'Subject area, e.g. "Biology - Cell Division".' },
-      summary: { type: 'string', description: 'Two or three sentences summarizing the notes.' },
-      cards: {
-        type: 'array',
-        description: 'Flash cards covering every important fact, term, formula, date, or concept in the notes.',
-        items: {
-          type: 'object',
-          additionalProperties: false,
-          required: ['front', 'back'],
-          properties: {
-            front: { type: 'string', description: 'Term, question, or prompt. Keep it short.' },
-            back: { type: 'string', description: 'The answer. Concise: ideally under 15 words.' },
-          },
-        },
-      },
-      questions: {
-        type: 'array',
-        description: 'Multiple-choice quiz questions that test understanding of the notes.',
-        items: {
-          type: 'object',
-          additionalProperties: false,
-          required: ['question', 'choices', 'answer', 'explanation'],
-          properties: {
-            question: { type: 'string' },
-            choices: { type: 'array', items: { type: 'string' }, description: 'Exactly 4 plausible choices.' },
-            answer: { type: 'integer', description: 'Index (0-3) of the correct choice.' },
-            explanation: { type: 'string', description: 'One sentence explaining why the answer is right.' },
-          },
-        },
-      },
-      monsters: {
-        type: 'array',
-        description: 'Exactly 5 playful monster names themed on the subject, for the battle game mode. Order them from weakest to strongest.',
-        items: {
-          type: 'object',
-          additionalProperties: false,
-          required: ['name'],
-          properties: {
-            name: { type: 'string', description: 'A punny monster name related to the notes, e.g. "Mitochondrix".' },
-          },
-        },
-      },
-    },
-  };
-
-  const SYSTEM = `You turn photos of a student's handwritten or typed notes into study material.
-
-Read every photo carefully, including margins, diagrams, tables, and small annotations. Transcribe accurately: do not invent facts that are not in the notes, but you may use general knowledge to make definitions clearer or to write plausible wrong answers.
-
-Guidelines:
-- cards: cover ALL important content. Typically 15-40 cards depending on how dense the notes are. Fronts are short prompts; backs are concise answers (under 15 words when possible).
-- questions: 12-25 multiple-choice questions. Each has exactly 4 choices, exactly one correct, and the wrong choices must be plausible (common misconceptions, similar terms). Vary which index is correct. Include some questions that require applying or connecting ideas, not just recall.
-- Every card and question must stand completely on its own. The student will see ONLY the text you write, never the photos. Do not write anything that needs a diagram, figure, graph, table, map, picture, worked example, or passage from the notes in order to be answered. Never use phrases such as "in the diagram", "the figure above", "as shown", "in the example", "according to the notes", "on page 2", "label A", or "the following table". If a fact comes from a diagram or example, either rewrite it so all the needed information is stated in words inside the question itself (for example give the numbers, names, or description directly), or leave it out. If it cannot be asked fairly in text alone, skip it.
-- Before finishing, reread each card and question as someone who has never seen the notes. If it cannot be answered from its own text plus subject knowledge, fix it or remove it.
-- monsters: exactly 5 punny names tied to the subject, ordered weakest to strongest (the last one is the boss).
-- Write in the same language as the notes.`;
-
-  const LECTURE_SCHEMA = {
-    type: 'object',
-    additionalProperties: false,
-    required: ['title', 'sections'],
-    properties: {
-      title: { type: 'string', description: 'Title of the lecture (3-8 words).' },
-      sections: {
-        type: 'array',
-        description: '4 to 7 sections in teaching order.',
-        items: {
-          type: 'object',
-          additionalProperties: false,
-          required: ['heading', 'paragraphs'],
-          properties: {
-            heading: { type: 'string', description: 'Short on-screen heading for the section (not spoken).' },
-            paragraphs: { type: 'array', items: { type: 'string' }, description: 'Spoken paragraphs, 2-5 sentences each. Plain text only.' },
-          },
-        },
-      },
-    },
-  };
-
-  const LECTURE_SYSTEM = `You are a warm, engaging teacher recording a spoken lecture for one student, based on that student's own notes.
-
-Write exactly what you would say out loud. Natural spoken sentences only: no markdown, no bullet points, no lists, no stage directions, no headings inside the paragraphs (headings are shown on screen, not spoken). Avoid symbols that read badly aloud; say "carbon dioxide" rather than "CO2" unless the notes are formula-heavy.
-
-Aim for 700 to 1100 words in 4 to 7 sections. Open with a one-or-two-sentence hook about why the topic matters. Teach the ideas in a sensible order so each builds on the last. Use a concrete example or analogy where it helps. Once or twice, ask the student a quick "pause and think" question, then answer it. Finish with a short recap of the key points. Write in the same language as the notes. Do not invent facts that are not supported by the notes.`;
-
-  function modeHint(mode) {
-    return {
-      flash: 'The student chose Flash Cards, so prioritize a complete, well-ordered card set.',
-      notemon: 'The student chose Notemon (a monster battle game), so make questions fun and varied, and make the monster names extra creative.',
-      match: 'The student chose Match (a memory pairing game), so keep card backs especially short (1-6 words) wherever possible.',
-      blitz: 'The student chose Blitz (a timed speed round), so questions and choices should be quick to read.',
-    }[mode] || '';
-  }
+  // Models offered to people who bring their own key. Older saved choices map to their successors.
+  const MODELS = [
+    ['claude-opus-5-5', 'Claude Opus 5.5 (default, best quality)'],
+    ['claude-sonnet-5-5', 'Claude Sonnet 5.5 (cheaper, faster)'],
+    ['claude-haiku-5-5', 'Claude Haiku 5.5 (cheapest)'],
+    ['claude-fable-5-1', 'Claude Fable 5.1 (most capable, most expensive)'],
+  ];
+  const DEFAULT_MODEL = 'claude-opus-5-5';
+  const RENAMED = { 'claude-opus-5': 'claude-opus-5-5', 'claude-sonnet-5': 'claude-sonnet-5-5' };
+  const model = m => { m = RENAMED[m] || m; return MODELS.some(([v]) => v === m) ? m : DEFAULT_MODEL; };
 
   // Turn an API error into something a student can act on.
   const BILLING_URL = 'https://console.anthropic.com/settings/billing';
@@ -123,15 +36,15 @@ Aim for 700 to 1100 words in 4 to 7 sections. Open with a one-or-two-sentence ho
   }
 
   // One structured-output request to Claude. Returns the parsed JSON object.
-  async function request({ apiKey, model, system, content, schema, maxTokens = 16000 }) {
+  async function request({ apiKey, model: m, system, content, schema, maxTokens = 16000, effort = 'high' }) {
     if (!apiKey) throw new Error('No API key set. Add one in Settings.');
     const body = {
-      model,
+      model: model(m),
       max_tokens: maxTokens,
       system,
       thinking: { type: 'adaptive' },
       messages: [{ role: 'user', content }],
-      output_config: { format: { type: 'json_schema', schema } },
+      output_config: { effort, format: { type: 'json_schema', schema } },
     };
     const headers = {
       'content-type': 'application/json',
@@ -139,8 +52,8 @@ Aim for 700 to 1100 words in 4 to 7 sections. Open with a one-or-two-sentence ho
       'anthropic-version': '2023-06-01',
       'anthropic-dangerous-direct-browser-access': 'true',
     };
-    // Server-side refusal fallbacks are supported on the Opus 5 / Fable tiers.
-    if (/^claude-(opus-5|fable)/.test(model)) {
+    // Server-side refusal fallbacks ("default" routing) on the tiers that support it.
+    if (/^claude-(opus-5|sonnet-5-5|fable)/.test(body.model)) {
       body.fallbacks = 'default';
       headers['anthropic-beta'] = 'server-side-fallback-2026-07-01';
     }
@@ -169,31 +82,22 @@ Aim for 700 to 1100 words in 4 to 7 sections. Open with a one-or-two-sentence ho
     return parsed;
   }
 
-  // Photos of notes -> study set.
-  async function generate({ images, name, mode, apiKey, model, onStatus }) {
+  // Photos of notes -> study set. No own key: the hosted plan does it.
+  async function generate({ images, name, mode, apiKey, model: m, onStatus }) {
     if (!images.length) throw new Error('Add at least one photo of your notes.');
+    if (!apiKey) return Billing.generateSet({ images, name, mode, onStatus });
     onStatus && onStatus('Reading your notes with Claude…');
-    const content = images.map(data => ({ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data } }));
-    let text = `Here are ${images.length} photo(s) of my notes. Build a complete study set from them.`;
-    if (name) text += ` I call this set "${name}".`;
-    text += ' ' + modeHint(mode);
-    content.push({ type: 'text', text });
-    return request({ apiKey, model, system: SYSTEM, content, schema: SCHEMA });
+    return request({ apiKey, model: m, system: SYSTEM, content: Prompts.setContent(images, name, mode), schema: SCHEMA });
   }
 
   // Study set -> spoken lecture script (text only, no photos needed).
-  async function lecture({ creation, apiKey, model }) {
-    const c = creation;
-    const lines = [
-      `Set title: ${c.name}`, `Subject: ${c.subject || 'unknown'}`, `Summary: ${c.summary || ''}`, '',
-      'Flash cards (front -> back):',
-      ...c.cards.map(k => `- ${k.front} -> ${k.back}`), '',
-      'Quiz questions the student will face (use them to decide what to emphasise):',
-      ...c.questions.slice(0, 15).map(q => `- ${q.question} (answer: ${q.choices[q.answer]})`),
-      '', 'Write the lecture now.',
-    ];
-    return request({ apiKey, model, system: LECTURE_SYSTEM, content: [{ type: 'text', text: lines.join('\n') }], schema: LECTURE_SCHEMA, maxTokens: 8000 });
+  async function lecture({ creation, apiKey, model: m }) {
+    if (!apiKey) return Billing.generateLecture({ creation });
+    return request({ apiKey, model: m, system: LECTURE_SYSTEM, content: Prompts.lectureContent(creation), schema: LECTURE_SCHEMA, maxTokens: 8000, effort: 'medium' });
   }
+
+  // Can this user generate at all? Own key, or a cloud account for the hosted plan.
+  const canGenerate = apiKey => !!apiKey || Billing.signedIn();
 
   // ---------- image helpers ----------
   async function loadBitmap(file) {
@@ -231,5 +135,5 @@ Aim for 700 to 1100 words in 4 to 7 sections. Open with a one-or-two-sentence ho
     return draw(bmp, 480).toDataURL('image/jpeg', 0.7);
   }
 
-  return { generate, lecture, toBase64, thumbnail, friendlyError, SCHEMA };
+  return { generate, lecture, canGenerate, toBase64, thumbnail, friendlyError, SCHEMA, MODELS, DEFAULT_MODEL, model };
 })();
