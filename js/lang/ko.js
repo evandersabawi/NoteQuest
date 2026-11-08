@@ -113,7 +113,6 @@ I18N.register('ko', {
   "Username must be 2–24 characters: letters, numbers, dots, dashes or underscores.": "사용자 이름은 2–24자의 영문, 숫자, 점, 하이픈, 밑줄만 쓸 수 있습니다.",
   "That username is already taken on this device.": "이 기기에서 이미 사용 중인 사용자 이름입니다.",
   "Welcome to Notely, {name}.": "Notely에 오신 걸 환영해요, {name}.",
-  "Welcome to Notely, {name}.": "Notely에 오신 걸 환영해요, {name}.",
   "Log in with your username (or email) and password. Your account works on every device.": "사용자 이름(또는 이메일)과 비밀번호로 로그인하세요. 계정은 모든 기기에서 쓸 수 있습니다.",
   "Username or email": "사용자 이름 또는 이메일",
   "Enter your username.": "사용자 이름을 입력하세요.",
