@@ -287,7 +287,7 @@
     if (kind === 'reset' && target) return renderReset(target);
     if (target) return target.passHash ? renderPassword(target) : renderFinishSetup(target);
     app.innerHTML = authShell(`
-      <div class="auth-logo">${I('logo')}</div>
+      <div class="auth-logo"><img class="logo-img" src="img/logo.png" alt="" width="56" height="56"></div>
       <h1>Welcome back</h1>
       <p class="hint">Choose your account to log in.</p>
       <div class="account-list">${list.map(u => `<button class="account" data-id="${u.id}">${avatarHTML(u, 'md')}<span><b>${esc(u.name)}</b><small>Level ${level(u.stats.xp)} · ${u.stats.xp} XP${u.lastLogin ? ' · last login ' + relTime(u.lastLogin) : ''}</small></span>${I('chevronRight', 'chev')}</button>`).join('')}</div>
@@ -386,7 +386,7 @@
   function renderSignup(list) {
     let avatar = { kind: rnd(Icons.KINDS.length), color: COLORS[rnd(COLORS.length)] };
     app.innerHTML = authShell(`
-      <div class="auth-logo">${I('logo')}</div>
+      <div class="auth-logo"><img class="logo-img" src="img/logo.png" alt="" width="56" height="56"></div>
       <h1>Create your account</h1>
       <p class="hint">Your account lives on this device. Nothing is sent to a server.</p>
       <button type="button" class="avatar-btn" id="pick"><span id="av">${Icons.avatar(avatar, 'xl')}</span><small>Tap to change avatar</small></button>
@@ -422,7 +422,7 @@
   // ---------- cloud accounts (Firebase, username based) ----------
   function renderCloudLogin() {
     app.innerHTML = authShell(`
-      <div class="auth-logo">${I('logo')}</div>
+      <div class="auth-logo"><img class="logo-img" src="img/logo.png" alt="" width="56" height="56"></div>
       <h1>Welcome back</h1>
       <p class="hint">Log in with your username (or email) and password. Your account works on every device.</p>
       <form class="auth-form" id="f">
@@ -456,7 +456,7 @@
   function renderCloudSignup() {
     let avatar = { kind: rnd(Icons.KINDS.length), color: COLORS[rnd(COLORS.length)] };
     app.innerHTML = authShell(`
-      <div class="auth-logo">${I('logo')}</div>
+      <div class="auth-logo"><img class="logo-img" src="img/logo.png" alt="" width="56" height="56"></div>
       <h1>Create your account</h1>
       <p class="hint">One account for all your devices. Your security question resets a forgotten password; email is optional.</p>
       <button type="button" class="avatar-btn" id="pick"><span id="av">${Icons.avatar(avatar, 'xl')}</span><small>Tap to change avatar</small></button>
@@ -495,7 +495,7 @@
     let info = null, username = prefill;
     const draw = () => {
       app.innerHTML = authShell(`
-        <div class="auth-logo">${I('logo')}</div>
+        <div class="auth-logo"><img class="logo-img" src="img/logo.png" alt="" width="56" height="56"></div>
         <h1>Reset password</h1>
         <p class="hint">${info ? (info.question ? 'Answer your security question to choose a new password.' : 'This account has no security question.') : 'Enter your username to continue.'}</p>
         <form class="auth-form" id="f">
@@ -635,7 +635,7 @@
   // Local mode on a device that has no accounts: explain, offer import, or create.
   function renderLocalEmpty() {
     app.innerHTML = authShell(`
-      <div class="auth-logo">${I('logo')}</div>
+      <div class="auth-logo"><img class="logo-img" src="img/logo.png" alt="" width="56" height="56"></div>
       <h1>No accounts on this device yet</h1>
       <p class="hint">Accounts are stored on the device where they were made. Bring yours over from the other device, or create a new one here.</p>
       <label class="btn secondary big wide">${I('upload')} Import my account file <input type="file" id="imp" accept="application/json" hidden></label>
