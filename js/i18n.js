@@ -14,7 +14,7 @@ const I18N = (() => {
     ['it', 'Italiano'], ['zh', '中文（简体）'], ['ja', '日本語'], ['ko', '한국어'],
   ];
   const KEY = 'notely.lang';
-  const VERSION = 3; // bump when a language file changes, so browsers fetch the new one
+  const VERSION = 4; // bump when a language file changes, so browsers fetch the new one
   const SKIP = [
     'script', 'style', 'code', 'pre', 'textarea', '[contenteditable]', '[translate="no"]', '[data-no-i18n]',
     '.lec-transcript', '.cardlist', '.tile h2', '.tile-sub', '.play-title b', '.user-chip span', '.side-user b',

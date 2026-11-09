@@ -62,9 +62,9 @@ const Icons = (() => {
   // ---------- profile pictures ----------
   // Three picture avatars in img/avatars. Older profiles saved {kind: 0-11, color}; kind % 3 maps them onto these.
   const KINDS = [
-    { name: 'Bolt', src: 'img/avatars/1.png' },
-    { name: 'Pencil', src: 'img/avatars/2.png' },
-    { name: 'Brain', src: 'img/avatars/3.png' },
+    { name: 'Quick-thinker', src: 'img/avatars/1.png' },
+    { name: 'Studious', src: 'img/avatars/2.png' },
+    { name: 'Brainiac', src: 'img/avatars/3.png' },
   ];
   function avatar(a = {}, cls = '') {
     const k = Number.isInteger(a.kind) ? a.kind : 0;
