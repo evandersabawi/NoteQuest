@@ -80,8 +80,9 @@ img, svg { display: inline-block; }
 .brand:hover { text-decoration: none; }
 .brand-mark { display: inline-flex; }
 .brand-mark img { width: 28px; height: 28px; }
-/* The logo's cap is near-black, so dark themes give it a faint light rim to keep its outline readable. */
-.logo-img { display: block; filter: drop-shadow(0 0 1px rgba(255, 255, 255, .35)); }
+/* The logo's cap is near-black, so dark mode traces it with a solid white outline (as on the favicon). */
+.logo-img { display: block; --o: 1px; filter: drop-shadow(var(--o) 0 0 #fff) drop-shadow(calc(-1 * var(--o)) 0 0 #fff) drop-shadow(0 var(--o) 0 #fff) drop-shadow(0 calc(-1 * var(--o)) 0 #fff); }
+.auth-logo .logo-img { --o: 1.5px; }
 [data-mode="light"] .logo-img { filter: none; }
 
 /* language picker */
