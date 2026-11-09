@@ -11,7 +11,6 @@
     blitz:   { name: 'Blitz',       icon: 'zap',    desc: '60-second speed round with streak multipliers.' },
   };
   const MODELS = API.MODELS; // models for people who bring their own key (js/api.js)
-  const COLORS = ['#8db4f2', '#5fbcc6', '#8cc79a', '#e8957a', '#c9839e', '#d9b86c', '#7fb8a4', '#d98a8a', '#a7b97a', '#d3a07a', '#8a9fd1', '#a993c9'];
 
   const settings = () => Object.assign({ model: API.DEFAULT_MODEL }, Store.settings.get());
   const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2));
@@ -115,24 +114,21 @@
     });
   }
 
-  // Avatar picker (creature + colour). Resolves with {kind, color} or null.
+  // Avatar picker (one of the three profile pictures). Resolves with {kind} or null.
   function pickAvatar(current) {
-    let kind = current?.kind ?? 0, color = current?.color || COLORS[0];
+    let kind = (current?.kind ?? 0) % Icons.KINDS.length;
     return modal({
       title: 'Choose your avatar', okText: 'Save',
-      body: `<div class="avatar-preview" id="av-prev">${Icons.avatar({ kind, color }, 'xl')}</div>
-        <div class="kind-grid">${Icons.KINDS.map((k, i) => `<button type="button" class="kind-pick ${i === kind ? 'active' : ''}" data-k="${i}" title="${esc(k.name)}">${Icons.avatar({ kind: i, color }, 'md')}<small>${esc(k.name)}</small></button>`).join('')}</div>
-        <div class="color-row">${COLORS.map(c => `<button type="button" class="color-pick ${c === color ? 'active' : ''}" data-c="${c}" style="background:${c}" aria-label="${c}"></button>`).join('')}</div>`,
+      body: `<div class="avatar-preview" id="av-prev">${Icons.avatar({ kind }, 'xl')}</div>
+        <div class="kind-grid">${Icons.KINDS.map((k, i) => `<button type="button" class="kind-pick ${i === kind ? 'active' : ''}" data-k="${i}" title="${esc(k.name)}">${Icons.avatar({ kind: i }, 'lg')}<small>${esc(k.name)}</small></button>`).join('')}</div>`,
       onOpen(m) {
         const refresh = () => {
-          m.querySelector('#av-prev').innerHTML = Icons.avatar({ kind, color }, 'xl');
-          m.querySelectorAll('.kind-pick').forEach(b => { b.classList.toggle('active', +b.dataset.k === kind); b.querySelector('svg').outerHTML = Icons.avatar({ kind: +b.dataset.k, color }, 'md'); });
-          m.querySelectorAll('.color-pick').forEach(b => b.classList.toggle('active', b.dataset.c === color));
+          m.querySelector('#av-prev').innerHTML = Icons.avatar({ kind }, 'xl');
+          m.querySelectorAll('.kind-pick').forEach(b => b.classList.toggle('active', +b.dataset.k === kind));
         };
         m.querySelectorAll('.kind-pick').forEach(b => b.onclick = () => { kind = +b.dataset.k; refresh(); });
-        m.querySelectorAll('.color-pick').forEach(b => b.onclick = () => { color = b.dataset.c; refresh(); });
       },
-    }).then(v => v ? { kind, color } : null);
+    }).then(v => v ? { kind } : null);
   }
 
   // ---------- chrome: top bar + sidebar ----------
@@ -384,7 +380,7 @@
   }
 
   function renderSignup(list) {
-    let avatar = { kind: rnd(Icons.KINDS.length), color: COLORS[rnd(COLORS.length)] };
+    let avatar = { kind: rnd(Icons.KINDS.length) };
     app.innerHTML = authShell(`
       <div class="auth-logo"><img class="logo-img" src="img/logo.png" alt="" width="56" height="56"></div>
       <h1>Create your account</h1>
@@ -454,7 +450,7 @@
   }
 
   function renderCloudSignup() {
-    let avatar = { kind: rnd(Icons.KINDS.length), color: COLORS[rnd(COLORS.length)] };
+    let avatar = { kind: rnd(Icons.KINDS.length) };
     app.innerHTML = authShell(`
       <div class="auth-logo"><img class="logo-img" src="img/logo.png" alt="" width="56" height="56"></div>
       <h1>Create your account</h1>
