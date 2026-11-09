@@ -1,4 +1,4 @@
-// Inline SVG graphics: line icons (24x24 stroke style), generated creature avatars, and Notemon monsters.
+// Inline SVG graphics: line icons (24x24 stroke style) and Notemon monsters, plus the picture avatars.
 const Icons = (() => {
   const PATHS = {
     home: '<path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/>',
@@ -59,64 +59,17 @@ const Icons = (() => {
   };
   const icon = (name, cls = '') => `<svg class="ico ${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${PATHS[name] || PATHS.info}</svg>`;
 
-  // ---------- creature avatars ----------
-  // Each kind is a white creature drawn on a coloured disc. Parts are combined by index.
-  const INK = '#1c1a33';
-  const EARS = {
-    none: '',
-    cat: '<path d="M18 26 14 12l12 8z"/><path d="M46 26l4-14-12 8z"/>',
-    round: '<circle cx="16" cy="18" r="7"/><circle cx="48" cy="18" r="7"/>',
-    horns: '<path d="M20 22c-4-3-6-9-4-14 3 3 6 6 8 12z"/><path d="M44 22c4-3 6-9 4-14-3 3-6 6-8 12z"/>',
-    antenna: '<path d="M26 18 22 8" stroke="#fff" stroke-width="3" stroke-linecap="round" fill="none"/><circle cx="21" cy="7" r="3"/><path d="M38 18l4-10" stroke="#fff" stroke-width="3" stroke-linecap="round" fill="none"/><circle cx="43" cy="7" r="3"/>',
-    bunny: '<path d="M22 24c-6-6-8-14-4-20 4 3 7 10 8 18z"/><path d="M42 24c6-6 8-14 4-20-4 3-7 10-8 18z"/>',
-    fin: '<path d="M32 8c-6 4-8 10-6 16h12c2-6 0-12-6-16z"/>',
-    leaf: '<path d="M32 10c6-2 10 0 12 6-6 2-10 0-12-6z"/><path d="M32 10c-6-2-10 0-12 6 6 2 10 0 12-6z"/>',
-  };
-  const BODIES = {
-    round: '<circle cx="32" cy="36" r="20"/>',
-    square: '<rect x="12" y="16" width="40" height="40" rx="12"/>',
-    blob: '<path d="M32 15c12 0 21 8 21 19s-9 22-21 22-21-11-21-22 9-19 21-19z"/>',
-    egg: '<path d="M32 14c10 0 18 12 18 24s-8 18-18 18-18-6-18-18 8-24 18-24z"/>',
-  };
-  const EYES = {
-    round: `<circle cx="25" cy="34" r="3.2" fill="${INK}"/><circle cx="39" cy="34" r="3.2" fill="${INK}"/><circle cx="26" cy="33" r="1" fill="#fff"/><circle cx="40" cy="33" r="1" fill="#fff"/>`,
-    wide: `<ellipse cx="25" cy="34" rx="4" ry="5" fill="${INK}"/><ellipse cx="39" cy="34" rx="4" ry="5" fill="${INK}"/><circle cx="26.5" cy="32" r="1.4" fill="#fff"/><circle cx="40.5" cy="32" r="1.4" fill="#fff"/>`,
-    happy: `<path d="M21 35c2-4 6-4 8 0" stroke="${INK}" stroke-width="2.5" fill="none" stroke-linecap="round"/><path d="M35 35c2-4 6-4 8 0" stroke="${INK}" stroke-width="2.5" fill="none" stroke-linecap="round"/>`,
-    dot: `<circle cx="25" cy="34" r="2" fill="${INK}"/><circle cx="39" cy="34" r="2" fill="${INK}"/>`,
-    one: `<circle cx="32" cy="33" r="6" fill="${INK}"/><circle cx="34" cy="31" r="2" fill="#fff"/>`,
-    sleepy: `<path d="M21 34h8" stroke="${INK}" stroke-width="2.5" stroke-linecap="round"/><path d="M35 34h8" stroke="${INK}" stroke-width="2.5" stroke-linecap="round"/>`,
-  };
-  const MOUTHS = {
-    smile: `<path d="M26 43c3 3 9 3 12 0" stroke="${INK}" stroke-width="2.5" fill="none" stroke-linecap="round"/>`,
-    grin: `<path d="M24 42c3 5 13 5 16 0z" fill="${INK}"/><path d="M28 42h8v2.5a2 2 0 0 1-8 0z" fill="#fff"/>`,
-    o: `<ellipse cx="32" cy="44" rx="3" ry="3.5" fill="${INK}"/>`,
-    cat: `<path d="M28 42c2 3 4 3 4 0 0 3 2 3 4 0" stroke="${INK}" stroke-width="2.2" fill="none" stroke-linecap="round"/>`,
-    tooth: `<path d="M26 43c3 3 9 3 12 0" stroke="${INK}" stroke-width="2.5" fill="none" stroke-linecap="round"/><path d="M29 43.5h3v3h-3z" fill="#fff" stroke="${INK}" stroke-width="1"/>`,
-    line: `<path d="M27 44h10" stroke="${INK}" stroke-width="2.5" stroke-linecap="round"/>`,
-  };
+  // ---------- profile pictures ----------
+  // Three picture avatars in img/avatars. Older profiles saved {kind: 0-11, color}; kind % 3 maps them onto these.
   const KINDS = [
-    { name: 'Kit', body: 'round', ears: 'cat', eyes: 'round', mouth: 'cat' },
-    { name: 'Bloop', body: 'blob', ears: 'antenna', eyes: 'wide', mouth: 'o' },
-    { name: 'Pip', body: 'egg', ears: 'none', eyes: 'happy', mouth: 'smile' },
-    { name: 'Boxy', body: 'square', ears: 'round', eyes: 'dot', mouth: 'grin' },
-    { name: 'Hop', body: 'round', ears: 'bunny', eyes: 'round', mouth: 'tooth' },
-    { name: 'Cyclo', body: 'blob', ears: 'horns', eyes: 'one', mouth: 'smile' },
-    { name: 'Sprout', body: 'egg', ears: 'leaf', eyes: 'happy', mouth: 'o' },
-    { name: 'Finn', body: 'round', ears: 'fin', eyes: 'wide', mouth: 'smile' },
-    { name: 'Dozer', body: 'square', ears: 'cat', eyes: 'sleepy', mouth: 'line' },
-    { name: 'Beep', body: 'square', ears: 'antenna', eyes: 'dot', mouth: 'line' },
-    { name: 'Puff', body: 'blob', ears: 'round', eyes: 'happy', mouth: 'grin' },
-    { name: 'Nib', body: 'egg', ears: 'horns', eyes: 'wide', mouth: 'cat' },
+    { name: 'Bolt', src: 'img/avatars/1.png' },
+    { name: 'Pencil', src: 'img/avatars/2.png' },
+    { name: 'Brain', src: 'img/avatars/3.png' },
   ];
   function avatar(a = {}, cls = '') {
-    const kind = KINDS[(a.kind ?? 0) % KINDS.length] || KINDS[0];
-    const color = a.color || '#8b7cff';
-    return `<svg class="avatar ${cls}" viewBox="0 0 64 64" aria-hidden="true">
-      <circle cx="32" cy="32" r="32" fill="${color}"/>
-      <g fill="#fff">${EARS[kind.ears] || ''}${BODIES[kind.body]}</g>
-      ${EYES[kind.eyes]}${MOUTHS[kind.mouth]}
-      <circle cx="20" cy="41" r="2.6" fill="#ff8fb1" opacity=".55"/><circle cx="44" cy="41" r="2.6" fill="#ff8fb1" opacity=".55"/>
-    </svg>`;
+    const k = Number.isInteger(a.kind) ? a.kind : 0;
+    const kind = KINDS[((k % KINDS.length) + KINDS.length) % KINDS.length];
+    return `<img class="avatar ${cls}" src="${kind.src}" alt="" draggable="false">`;
   }
 
   // ---------- Notemon monsters (5 designs, escalating) ----------
