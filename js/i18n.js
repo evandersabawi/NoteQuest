@@ -14,7 +14,7 @@ const I18N = (() => {
     ['it', 'Italiano'], ['zh', '中文（简体）'], ['ja', '日本語'], ['ko', '한국어'],
   ];
   const KEY = 'notely.lang';
-  const VERSION = 4; // bump when a language file changes, so browsers fetch the new one
+  const VERSION = 5; // bump when a language file changes, so browsers fetch the new one
   const SKIP = [
     'script', 'style', 'code', 'pre', 'textarea', '[contenteditable]', '[translate="no"]', '[data-no-i18n]',
     '.lec-transcript', '.cardlist', '.tile h2', '.tile-sub', '.play-title b', '.user-chip span', '.side-user b',
@@ -125,8 +125,10 @@ const I18N = (() => {
     const out = translateText(src);
     if (out !== cur) { wroteText.set(node, out); node.nodeValue = out; } else wroteText.set(node, cur);
   }
+  // A textarea's text is the user's own, but its placeholder/title are interface text.
+  const attrsSkipped = el => el && el.tagName === 'TEXTAREA' ? skipped(el.parentElement) : skipped(el);
   function doAttrs(el) {
-    if (skipped(el)) return;
+    if (attrsSkipped(el)) return;
     let saved = origAttr.get(el);
     for (const a of ATTRS) {
       if (!el.hasAttribute(a)) continue;
@@ -142,12 +144,15 @@ const I18N = (() => {
   }
   function walk(root) {
     if (root.nodeType === 3) return doText(root);
-    if (root.nodeType !== 1 || skipped(root)) return;
+    if (root.nodeType !== 1) return;
+    if (root.tagName === 'TEXTAREA') return doAttrs(root);
+    if (skipped(root)) return;
     doAttrs(root);
     const tw = document.createTreeWalker(root, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT, {
       acceptNode: n => n.nodeType === 1 && n.matches(SKIP) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT,
     });
     let n; while ((n = tw.nextNode())) { if (n.nodeType === 3) doText(n); else doAttrs(n); }
+    root.querySelectorAll('textarea').forEach(doAttrs);
   }
   let observer = null;
   function observe() {

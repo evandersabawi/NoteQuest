@@ -418,4 +418,7 @@ I18N.register('es', {
   "Notely makes sets with your own Claude API key. Add one in": "Notely crea los sets con tu propia clave de API de Claude. Añade una en",
   "Notely makes sets and lectures with your own key from console.anthropic.com. Anthropic bills you directly, usually a few cents per set.": "Notely crea sets y clases con tu propia clave de console.anthropic.com. Anthropic te cobra directamente, normalmente unos céntimos por set.",
   "Add your Claude API key in Settings first.": "Primero añade tu clave de API de Claude en Ajustes.",
+  "Special instructions": "Instrucciones especiales",
+  "e.g. Only chapters 1–3, not 4–6.": "p. ej. Solo los capítulos 1–3, no del 4 al 6.",
+  "Tell Claude what to focus on or skip when it makes your cards and quiz.": "Dile a Claude en qué centrarse o qué omitir al crear tus tarjetas y tu cuestionario.",
 });
