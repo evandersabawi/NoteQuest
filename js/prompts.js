@@ -61,6 +61,7 @@ Guidelines:
 - cards: cover ALL important content. Typically 15-40 cards depending on how dense the notes are. Fronts are short prompts; backs are concise answers (under 15 words when possible).
 - questions: 12-25 multiple-choice questions. Each has exactly 4 choices, exactly one correct, and the wrong choices must be plausible (common misconceptions, similar terms). Vary which index is correct. Include some questions that require applying or connecting ideas, not just recall.
 - Every card and question must stand completely on its own. The student will see ONLY the text you write, never the photos. Do not write anything that needs a diagram, figure, graph, table, map, picture, worked example, or passage from the notes in order to be answered. Never use phrases such as "in the diagram", "the figure above", "as shown", "in the example", "according to the notes", "on page 2", "label A", or "the following table". If a fact comes from a diagram or example, either rewrite it so all the needed information is stated in words inside the question itself (for example give the numbers, names, or description directly), or leave it out. If it cannot be asked fairly in text alone, skip it.
+- Ask only about the subject matter the notes teach. Notes often carry details that are not part of what is being studied: the student's name, the teacher's name, the class or course name, the lesson, unit, or chapter title, page numbers, dates the notes were written, school name, headers, footers, and doodles. Never write cards or questions about these, such as "Whose notes are these?", "What is the title of this lesson?", "What date were these notes taken?", or "Which class are these notes for?". A date, name, or title is fair game only when it is part of the content itself (for example the year a battle happened or the scientist who proposed a theory).
 - Before finishing, reread each card and question as someone who has never seen the notes. If it cannot be answered from its own text plus subject knowledge, fix it or remove it.
 - monsters: exactly 5 punny names tied to the subject, ordered weakest to strongest (the last one is the boss).
 - Write in the same language as the notes.`;
@@ -102,12 +103,17 @@ Aim for 700 to 1100 words in 4 to 7 sections. Open with a one-or-two-sentence ho
     }[mode] || '';
   }
 
-  // Photos of notes -> the user message for a study set.
-  function setContent(images, name, mode) {
+  // Photos of notes -> the user message for a study set. `instructions` is the student's optional
+  // free-text request, e.g. "Only chapters 1-3, not 4-6".
+  function setContent(images, name, mode, instructions) {
     const content = images.map(data => ({ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data } }));
     let text = `Here are ${images.length} photo(s) of my notes. Build a complete study set from them.`;
     if (name) text += ` I call this set "${name}".`;
     text += ' ' + modeHint(mode);
+    const extra = String(instructions || '').trim().slice(0, 1000);
+    if (extra) {
+      text += `\n\nMy special instructions for this set (follow them when choosing what to cover and how to write the cards and questions, as long as they fit the required output format; if they limit the material, for example to certain chapters or topics, leave everything else out of the cards, questions, title, and summary):\n<special_instructions>\n${extra}\n</special_instructions>`;
+    }
     content.push({ type: 'text', text });
     return content;
   }

@@ -83,10 +83,10 @@ const API = (() => {
   }
 
   // Photos of notes -> study set.
-  async function generate({ images, name, mode, apiKey, model: m, onStatus }) {
+  async function generate({ images, name, mode, instructions, apiKey, model: m, onStatus }) {
     if (!images.length) throw new Error('Add at least one photo of your notes.');
     onStatus && onStatus('Reading your notes with Claude…');
-    return request({ apiKey, model: m, system: SYSTEM, content: Prompts.setContent(images, name, mode), schema: SCHEMA });
+    return request({ apiKey, model: m, system: SYSTEM, content: Prompts.setContent(images, name, mode, instructions), schema: SCHEMA });
   }
 
   // Study set -> spoken lecture script (text only, no photos needed).
