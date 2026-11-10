@@ -189,7 +189,6 @@ body.logged-out #app { max-width: none; }
   width: 100%; min-height: 40px; padding: 8px var(--s3); border-radius: var(--r); border: 1px solid var(--line);
   background: var(--surface); color: var(--text); font: inherit; font-size: var(--fs-md);
 }
-textarea.input { display: block; resize: vertical; min-height: 72px; line-height: 1.4; }
 .input::placeholder { color: var(--muted); opacity: .8; }
 .input:hover { border-color: var(--muted); }
 .input:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: transparent; }

@@ -418,7 +418,4 @@ I18N.register('zh', {
   "Notely makes sets with your own Claude API key. Add one in": "Notely 使用你自己的 Claude API 密钥生成学习集。请在此添加：",
   "Notely makes sets and lectures with your own key from console.anthropic.com. Anthropic bills you directly, usually a few cents per set.": "Notely 使用你在 console.anthropic.com 获取的密钥生成学习集和讲解。费用由 Anthropic 直接向你收取，通常每个学习集几美分。",
   "Add your Claude API key in Settings first.": "请先在设置中添加你的 Claude API 密钥。",
-  "Special instructions": "特别说明",
-  "e.g. Only chapters 1–3, not 4–6.": "例如：只要第 1–3 章，不要第 4–6 章。",
-  "Tell Claude what to focus on or skip when it makes your cards and quiz.": "告诉 Claude 在制作卡片和测验时应侧重什么或跳过什么。",
 });

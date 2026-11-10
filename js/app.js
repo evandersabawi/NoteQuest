@@ -832,7 +832,7 @@
   }
 
   // ---------- Create ----------
-  const createState = { name: '', instructions: '', files: [], mode: 'flash', busy: false, status: '', error: '', errorKind: '', errorLink: null };
+  const createState = { name: '', files: [], mode: 'flash', busy: false, status: '', error: '', errorKind: '', errorLink: null };
 
   function renderCreate() {
     const s = settings();
@@ -858,10 +858,6 @@
           <button type="button" class="mode-card ${st.mode === k ? 'active' : ''}" data-mode="${k}"><span class="mode-icon">${I(m.icon)}</span><b>${m.name}</b><small>${m.desc}</small></button>`).join('')}</div>
       </div>
 
-      <label class="field"><span>Special instructions <small>(optional)</small></span>
-        <textarea class="input" id="instructions" rows="3" maxlength="1000" placeholder="e.g. Only chapters 1–3, not 4–6."></textarea>
-        <small class="hint">Tell Claude what to focus on or skip when it makes your cards and quiz.</small></label>
-
       <div class="error ${st.errorKind === 'credits' ? 'credits' : ''}" id="error" ${st.error ? '' : 'hidden'}>${st.errorKind === 'credits' ? I('key') : ''}<div>${esc(st.error)}${st.errorLink ? ` <a class="btn primary small" href="${esc(st.errorLink)}" target="_blank" rel="noopener">Add credits</a>` : ''}${st.errorKind === 'auth' ? ' <a class="btn ghost small" href="#settings">Open Settings</a>' : ''}</div></div>
       <div class="row">
         <button class="btn primary big" id="go" ${st.busy ? 'disabled' : ''}>${st.busy ? '<span class="spinner"></span> ' + esc(st.status || 'Working…') : I('sparkles') + ' Generate with Claude'}</button>
@@ -871,9 +867,6 @@
 
     const nameEl = app.querySelector('#name');
     nameEl.oninput = () => st.name = nameEl.value;
-    const instrEl = app.querySelector('#instructions');
-    instrEl.value = st.instructions;
-    instrEl.oninput = () => st.instructions = instrEl.value;
     const fileInput = app.querySelector('#files');
     fileInput.onchange = () => { addFiles(fileInput.files); fileInput.value = ''; };
     const drop = app.querySelector('#drop');
@@ -904,11 +897,11 @@
       for (const f of st.files) images.push(await API.toBase64(f));
       const cover = await API.thumbnail(st.files[0]);
       st.status = 'Reading your notes with Claude… (this can take a minute)'; renderCreate();
-      const r = await API.generate({ images, name: st.name.trim(), mode: st.mode, instructions: st.instructions.trim(), apiKey: s.apiKey, model: s.model, onStatus: m => { st.status = m; renderCreate(); } });
+      const r = await API.generate({ images, name: st.name.trim(), mode: st.mode, apiKey: s.apiKey, model: s.model, onStatus: m => { st.status = m; renderCreate(); } });
       const c = sanitize(r, { name: st.name.trim(), mode: st.mode, cover, owner: u.id });
       await putC(c);
       u.stats.xp += 25; saveUser(u);
-      st.files = []; st.name = ''; st.instructions = ''; st.busy = false; st.status = '';
+      st.files = []; st.name = ''; st.busy = false; st.status = '';
       toast(`Created "${c.name}" · ${c.cards.length} cards, ${c.questions.length} questions`, 4000);
       location.hash = '#creations';
       if (s.autoLecture !== false) prepareLecture(c);

@@ -103,17 +103,12 @@ Aim for 700 to 1100 words in 4 to 7 sections. Open with a one-or-two-sentence ho
     }[mode] || '';
   }
 
-  // Photos of notes -> the user message for a study set. `instructions` is the student's optional
-  // free-text request, e.g. "Only chapters 1-3, not 4-6".
-  function setContent(images, name, mode, instructions) {
+  // Photos of notes -> the user message for a study set.
+  function setContent(images, name, mode) {
     const content = images.map(data => ({ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data } }));
     let text = `Here are ${images.length} photo(s) of my notes. Build a complete study set from them.`;
     if (name) text += ` I call this set "${name}".`;
     text += ' ' + modeHint(mode);
-    const extra = String(instructions || '').trim().slice(0, 1000);
-    if (extra) {
-      text += `\n\nMy special instructions for this set (follow them when choosing what to cover and how to write the cards and questions, as long as they fit the required output format; if they limit the material, for example to certain chapters or topics, leave everything else out of the cards, questions, title, and summary):\n<special_instructions>\n${extra}\n</special_instructions>`;
-    }
     content.push({ type: 'text', text });
     return content;
   }
